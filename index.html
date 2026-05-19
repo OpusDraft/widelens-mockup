@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WideLens — Mockup v3</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<style>
+  :root {
+    --bg-light: #e8eaed;
+    --bg-white: #ffffff;
+    --bg-dark: #0f1419;
+    --gold: #b8860b;
+    --gold-soft: #f5e6c7;
+    --text-dark: #0f1419;
+    --text-muted: #6b6e73;
+    --border: #e1e3e6;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { font-family: var(--font); color: var(--text-dark); background: var(--bg-light); -webkit-font-smoothing: antialiased; }
+  body { line-height: 1.5; }
+
+  /* Sticky founding bar */
+  .sticky-bar { position: sticky; top: 0; z-index: 100; background: var(--bg-dark); color: #fff; padding: 10px 24px; text-align: center; font-size: 14px; display: flex; justify-content: center; align-items: center; gap: 12px; }
+  .sticky-bar strong { color: var(--gold-soft); }
+  .sticky-bar a { color: var(--gold-soft); text-decoration: underline; font-weight: 600; }
+  .sticky-bar .dismiss { background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 18px; position: absolute; right: 16px; }
+
+  /* Nav */
+  .nav { background: var(--bg-white); padding: 16px 48px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+  .nav .logo { font-weight: 800; font-size: 22px; letter-spacing: -0.02em; display: flex; align-items: center; gap: 8px; }
+  .nav .logo img { height: 1.5em; width: auto; display: block; }
+  .nav .logo .brand { display: inline; white-space: nowrap; }
+  .nav .logo .brand-gold { color: var(--gold); }
+  .logo .brand { white-space: nowrap; }
+  .logo .brand-gold { color: var(--gold); }
+  .nav ul { display: flex; gap: 32px; list-style: none; }
+  .nav ul a { text-decoration: none; color: var(--text-dark); font-size: 15px; font-weight: 500; }
+  .nav .nav-cta { background: var(--gold); color: #fff; padding: 10px 20px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 14px; }
+  .nav .hamburger { display: none; background: none; border: none; font-size: 28px; cursor: pointer; color: var(--text-dark); }
+  .mobile-drawer { display: none; position: fixed; top: 0; right: 0; bottom: 0; width: 80%; max-width: 320px; background: var(--bg-white); z-index: 200; padding: 32px 24px; box-shadow: -8px 0 32px rgba(0,0,0,0.15); }
+  .mobile-drawer.open { display: block; }
+  .mobile-drawer .close { background: none; border: none; font-size: 28px; position: absolute; top: 16px; right: 16px; cursor: pointer; }
+  .mobile-drawer ul { list-style: none; padding: 0; margin: 48px 0 32px; }
+  .mobile-drawer ul li { padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .mobile-drawer ul a { color: var(--text-dark); text-decoration: none; font-size: 18px; font-weight: 500; }
+  .mobile-drawer .nav-cta { display: block; text-align: center; margin-top: 24px; padding: 16px; }
+  .backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 150; }
+  .backdrop.open { display: block; }
+
+  /* Section */
+  section { padding: 120px 48px; }
+  .section-inner { max-width: 1200px; margin: 0 auto; }
+  .bg-light { background: var(--bg-light); }
+  .bg-white { background: var(--bg-white); }
+  .bg-dark { background: var(--bg-dark); color: #fff; }
+  .bg-dark h2, .bg-dark h3 { color: #fff; }
+  .bg-dark p { color: rgba(255,255,255,0.85); }
+
+  /* Typography — Bold hierarchy (Option B) */
+  h1 { font-size: 72px; font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; }
+  h2 { font-size: 44px; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
+  h3 { font-size: 24px; font-weight: 600; line-height: 1.2; }
+  .sub-head { font-size: 22px; font-weight: 500; color: var(--text-muted); margin-top: 16px; }
+  .outcome { font-size: 18px; font-weight: 500; color: var(--text-dark); margin-top: 12px; }
+  p { font-size: 18px; line-height: 1.6; color: rgba(15,20,25,0.85); }
+  .fine { font-size: 13px; color: var(--text-muted); }
+
+  /* Hero */
+  .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+  .hero h1 { margin-bottom: 0; }
+  .hero-text { text-align: center; display: flex; flex-direction: column; align-items: center; }
+  .hero-text h1, .hero-text > p { max-width: 560px; }
+  .hero .cta-row { display: flex; gap: 16px; margin-top: 32px; align-items: center; flex-wrap: wrap; justify-content: center; }
+
+  /* Hero phone — bigger, straight, CSS-rendered screen */
+  .hero-phone-wrap { position: relative; display: flex; justify-content: center; align-items: center; min-height: 640px; }
+  .hero-phone { width: 320px; height: 640px; background: var(--text-dark); border-radius: 48px; padding: 14px; box-shadow: 0 40px 100px rgba(15,20,25,0.28), 0 12px 30px rgba(15,20,25,0.12); position: relative; z-index: 2; }
+  .hero-phone-screen { width: 100%; height: 100%; background: linear-gradient(160deg, #1a2028 0%, #0f1419 100%); border-radius: 36px; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  .phone-statusbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 22px 8px; font-size: 13px; color: #fff; font-weight: 600; }
+  .phone-statusbar .icons { display: flex; gap: 6px; font-size: 11px; opacity: 0.9; }
+  .phone-viewfinder { flex: 1; background: linear-gradient(180deg, rgba(184,134,11,0.18) 0%, rgba(15,20,25,0.6) 100%); margin: 0 16px; border-radius: 20px; position: relative; display: flex; flex-direction: column; justify-content: space-between; padding: 16px; border: 1px solid rgba(255,255,255,0.06); }
+  .phone-emmy-placeholder { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; }
+  .phone-emmy-placeholder img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
+  .phone-rec { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.08); backdrop-filter: blur(8px); padding: 6px 12px; border-radius: 999px; font-size: 11px; color: #fff; font-weight: 600; align-self: flex-start; border: 1px solid rgba(255,255,255,0.1); }
+  .phone-rec-dot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .phone-teleprompter { background: rgba(255,255,255,0.92); padding: 10px 14px; border-radius: 12px; font-size: 11px; line-height: 1.5; color: var(--text-dark); font-weight: 500; }
+  .phone-teleprompter .gold-line { color: var(--gold); font-weight: 700; }
+  .phone-controls { padding: 14px 16px 18px; display: flex; justify-content: center; align-items: center; gap: 18px; }
+  .phone-control-btn { width: 32px; height: 32px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; }
+  .phone-shutter { width: 56px; height: 56px; background: #fff; border: 4px solid var(--gold); border-radius: 50%; box-shadow: 0 4px 14px rgba(184,134,11,0.4); }
+  .phone-publish-btn { margin: 0 16px 16px; background: var(--gold); color: #fff; padding: 11px; border-radius: 12px; text-align: center; font-weight: 700; font-size: 13px; box-shadow: 0 6px 16px rgba(184,134,11,0.3); }
+  .phone-publish-toast { position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%); background: rgba(15,20,25,0.85); backdrop-filter: blur(10px); color: #fff; padding: 8px 14px; border-radius: 999px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(184,134,11,0.4); box-shadow: 0 4px 14px rgba(0,0,0,0.3); white-space: nowrap; }
+  .phone-publish-toast .toast-check { color: var(--gold); font-weight: 800; }
+
+  /* Proof strip below hero */
+  .proof-strip { background: var(--bg-white); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 24px 48px; }
+  .proof-strip-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: center; align-items: center; gap: 56px; flex-wrap: wrap; }
+  .proof-item { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: var(--text-dark); }
+  .proof-item .proof-check { width: 22px; height: 22px; background: var(--gold-soft); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--gold); font-weight: 800; font-size: 13px; flex-shrink: 0; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-white); border: 1px solid var(--border); border-radius: 999px; padding: 8px 16px; font-size: 14px; color: var(--text-muted); }
+  .chip .check { color: var(--gold); font-weight: 700; }
+
+  /* Buttons */
+  .btn { display: inline-block; padding: 18px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; text-decoration: none; cursor: pointer; border: none; transition: all 0.2s ease; }
+  .btn-primary { background: var(--gold); color: #fff; }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(184, 134, 11, 0.35); }
+  .btn-secondary { background: transparent; color: var(--text-dark); border: 1px solid var(--text-dark); }
+  .btn-big { padding: 22px 40px; font-size: 17px; }
+
+  /* Phone mockup placeholder */
+  .phone { background: linear-gradient(135deg, var(--gold-soft), #fff); border: 12px solid var(--text-dark); border-radius: 40px; aspect-ratio: 9/19; max-width: 320px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 14px; transform: rotate(-8deg); box-shadow: 0 30px 80px rgba(15, 20, 25, 0.18); }
+  .phone-straight { transform: rotate(0deg); }
+
+  /* How it works cards */
+  .steps { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 16px; align-items: center; margin-top: 64px; }
+  .step-card { background: var(--bg-white); border: 1px solid var(--border); border-radius: 24px; padding: 24px; text-align: center; }
+  .step-card .phone { transform: rotate(0deg); margin-bottom: 24px; max-width: 240px; }
+  .step-card h3 { margin-bottom: 8px; }
+  .step-card .sub-label { color: var(--text-muted); font-size: 15px; }
+  .arrow { font-size: 32px; color: var(--gold); font-weight: 300; }
+
+  /* Email capture */
+  .capture { max-width: 560px; margin: 0 auto; text-align: center; }
+  .capture-form { display: flex; gap: 12px; margin-top: 24px; }
+  .capture-form input { flex: 1; padding: 18px 20px; border: 1px solid var(--border); border-radius: 12px; font-size: 16px; font-family: var(--font); }
+  .capture-form button { padding: 18px 28px; }
+
+  /* Feature grid */
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 56px; }
+  .feature-box { background: var(--bg-white); border: 1px solid var(--border); border-radius: 20px; padding: 32px; text-align: center; transition: all 0.2s ease; }
+  .feature-box:hover { box-shadow: 0 12px 32px rgba(184, 134, 11, 0.12); transform: translateY(-2px); }
+  .feature-icon { font-size: 36px; color: var(--gold); margin-bottom: 16px; }
+  .feature-label { font-weight: 600; font-size: 18px; }
+  .feature-benefit { font-size: 14px; color: var(--text-muted); line-height: 1.5; margin-top: 8px; }
+
+  /* Replace 5 tools */
+  .compare { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; margin-top: 56px; }
+  .compare-row { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }
+  .compare .old-tools { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: 720px; }
+  .old-tool { background: #d1d3d6; color: #888; padding: 12px 18px; border-radius: 12px; font-size: 14px; text-decoration: line-through; text-decoration-color: rgba(220, 38, 38, 0.7); text-decoration-thickness: 2px; }
+  .compare-arrow { font-size: 48px; color: var(--gold); font-weight: 300; }
+  .new-tool { background: var(--gold); color: #fff; padding: 20px 40px; border-radius: 16px; font-size: 22px; font-weight: 700; box-shadow: 0 12px 32px rgba(184, 134, 11, 0.25); }
+
+  /* Before / After — two-card layout */
+  .ba-cards { display: grid; grid-template-columns: 1fr auto 1fr; gap: 32px; align-items: stretch; margin-top: 56px; }
+  .ba-card { background: var(--bg-white); border-radius: 24px; padding: 36px; box-shadow: 0 4px 20px rgba(15, 20, 25, 0.04); }
+  .ba-card.before { background: #f3f4f6; border: 1px solid var(--border); }
+  .ba-card.after { background: var(--bg-dark); color: #fff; box-shadow: 0 12px 40px rgba(184, 134, 11, 0.2); }
+  .ba-card-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+  .ba-card.before .ba-card-title { color: var(--text-muted); }
+  .ba-card.after .ba-card-title { color: var(--gold); }
+  .ba-card-headline { font-size: 24px; font-weight: 700; margin-bottom: 28px; line-height: 1.2; }
+  .ba-card.before .ba-card-headline { color: var(--text-muted); }
+  .ba-card.after .ba-card-headline { color: var(--gold-soft); }
+  .ba-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid rgba(15, 20, 25, 0.08); font-size: 16px; }
+  .ba-card.after .ba-row { border-bottom-color: rgba(255, 255, 255, 0.1); }
+  .ba-row:last-child { border-bottom: none; }
+  .ba-row-label { color: var(--text-muted); font-size: 14px; font-weight: 500; }
+  .ba-card.after .ba-row-label { color: rgba(255, 255, 255, 0.6); }
+  .ba-row-value { font-weight: 600; }
+  .ba-card.before .ba-row-value { color: var(--text-muted); text-decoration: line-through; text-decoration-color: rgba(220, 38, 38, 0.5); }
+  .ba-card.after .ba-row-value { color: var(--gold-soft); }
+  .ba-vs { display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: var(--gold); }
+  .compare-footnote { max-width: 880px; margin: 32px auto 0; font-size: 13px; line-height: 1.6; color: var(--text-muted); text-align: center; font-style: italic; }
+
+  /* Founding offer */
+  .founding-block { text-align: center; max-width: 720px; margin: 0 auto; }
+  .founding-block h2 { font-size: 56px; }
+  .founding-emoji { font-size: 56px; margin-bottom: 16px; }
+  .founding-block .outcome { color: var(--gold-soft); font-size: 22px; margin-bottom: 24px; font-weight: 500; }
+  .founding-block .bullets { list-style: none; padding: 0; margin: 32px 0; display: inline-block; text-align: left; }
+  .founding-block .bullets li { padding: 8px 0; font-size: 17px; }
+  .founding-block .bullets .check { color: var(--gold); font-weight: 700; margin-right: 8px; }
+  .counter { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 16px; }
+  .justification { font-style: italic; color: rgba(255,255,255,0.6); font-size: 14px; margin-top: 24px; }
+
+  /* Pricing teaser */
+  .pricing-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 56px; }
+  .price-card { background: var(--bg-white); border: 1px solid var(--border); border-radius: 20px; padding: 40px 32px; text-align: left; position: relative; display: flex; flex-direction: column; transition: transform 0.2s ease; }
+  .price-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(15,20,25,0.08); }
+  .price-card.featured { border: 2px solid var(--gold); transform: scale(1.04); box-shadow: 0 24px 48px rgba(184,134,11,0.12); }
+  .price-card.dark { background: var(--text-dark); color: #fff; border: 1px solid rgba(184,134,11,0.4); }
+  .price-card.dark .tier-name { color: #fff; }
+  .price-card.dark .tier-feature { color: rgba(255,255,255,0.85); }
+  .price-card .tier-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--gold-soft); display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 20px; }
+  .price-card.dark .tier-icon { background: rgba(184,134,11,0.18); }
+  .price-card .tier-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; color: var(--text-dark); }
+  .price-card .tier-tag { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
+  .price-card.dark .tier-tag { color: rgba(255,255,255,0.65); }
+  .price-card .tier-price { font-size: 52px; font-weight: 800; line-height: 1; margin-bottom: 6px; letter-spacing: -0.02em; }
+  .price-card .tier-price .per { font-size: 18px; font-weight: 500; color: var(--text-muted); margin-left: 4px; }
+  .price-card.dark .tier-price .per { color: rgba(255,255,255,0.6); }
+  .price-card .tier-annual { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; min-height: 18px; }
+  .price-card.dark .tier-annual { color: rgba(255,255,255,0.55); }
+  .price-card .tier-features { list-style: none; padding: 0; margin: 0 0 32px 0; }
+  .price-card .tier-feature { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; font-size: 14.5px; color: var(--text-dark); line-height: 1.45; }
+  .price-card .tier-feature .feat-check { color: var(--gold); flex-shrink: 0; font-weight: 700; margin-top: 1px; }
+  .price-card .tier-feature strong { font-weight: 600; }
+  .price-card .tier-cta { margin-top: auto; }
+  .price-card .tier-cta .btn { width: 100%; justify-content: center; }
+  .price-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--gold); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 16px; border-radius: 20px; white-space: nowrap; }
+  .price-badge.founding { background: var(--text-dark); color: var(--gold-soft); }
+  .billing-toggle { display: inline-flex; background: var(--bg-white); border: 1px solid var(--border); border-radius: 32px; padding: 4px; margin: 24px 0 56px; }
+  .billing-toggle button { background: transparent; border: none; padding: 10px 20px; font-size: 14px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-radius: 28px; transition: all 0.15s ease; }
+  .billing-toggle button.active { background: var(--text-dark); color: #fff; }
+  .billing-toggle .save-pill { font-size: 11px; background: var(--gold-soft); color: var(--gold); padding: 2px 8px; border-radius: 10px; margin-left: 6px; font-weight: 700; }
+  .billing-toggle button.active .save-pill { background: var(--gold); color: #fff; }
+  .trial-strip { display: inline-flex; align-items: center; gap: 8px; background: var(--bg-white); border: 1px solid var(--border); border-radius: 32px; padding: 10px 20px; font-size: 14px; color: var(--text-dark); margin-top: 48px; }
+  .trial-strip .check { color: var(--gold); font-weight: 700; }
+  .popular-sticker { position: absolute; top: -14px; left: 50%; transform: translateX(-50%) rotate(-3deg); background: var(--gold); color: #fff; padding: 6px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; letter-spacing: 0.05em; }
+  .tier-name { font-size: 20px; font-weight: 700; }
+  .tier-price { font-size: 48px; font-weight: 700; margin: 16px 0 4px; }
+  .tier-price .per { font-size: 16px; color: var(--text-muted); font-weight: 400; }
+  .tier-desc { color: var(--text-muted); font-size: 15px; min-height: 48px; margin: 16px 0; }
+  .anchor-line { font-size: 13px; color: var(--gold); font-style: italic; margin: 8px 0 16px; }
+  .founding-flag { background: var(--bg-dark); color: var(--gold-soft); font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 8px; display: inline-block; margin-bottom: 12px; letter-spacing: 0.02em; }
+
+  /* Founder */
+  .founder-block { display: grid; grid-template-columns: 1fr 1.4fr; gap: 64px; align-items: center; }
+  .founder-photo { background: var(--gold-soft); border: 4px solid var(--gold); border-radius: 24px; aspect-ratio: 4/5; display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 24px; font-weight: 700; letter-spacing: 0.1em; }
+  .pull-quote { font-size: 36px; font-weight: 700; color: var(--gold-soft); line-height: 1.2; margin: 24px 0; font-style: italic; }
+  .founder-block p { color: rgba(255,255,255,0.9); margin: 12px 0; }
+  .founder-sig { color: var(--gold); font-weight: 600; margin-top: 16px; }
+
+  /* Footer */
+  footer { background: var(--bg-dark); color: rgba(255,255,255,0.7); padding: 48px; text-align: center; font-size: 14px; }
+  footer a { color: rgba(255,255,255,0.7); text-decoration: none; margin: 0 12px; }
+
+  /* Mobile */
+  @media (max-width: 768px) {
+    section { padding: 80px 24px; }
+    .nav { padding: 16px 24px; }
+    .nav ul { display: none; }
+    .nav .hamburger { display: block; }
+    .nav .nav-cta { display: none; }
+    h1 { font-size: 40px; }
+    h2 { font-size: 30px; }
+    .hero { grid-template-columns: 1fr; gap: 48px; text-align: center; }
+    .hero .phone { max-width: 240px; }
+    .steps { grid-template-columns: 1fr; }
+    .arrow { transform: rotate(90deg); }
+    .feature-grid { grid-template-columns: 1fr 1fr; }
+    .pricing-cards { grid-template-columns: 1fr; }
+    .price-card.featured { transform: scale(1); }
+    .founder-block { grid-template-columns: 1fr; gap: 32px; }
+    .founder-photo { max-width: 360px; margin: 0 auto; }
+    .founding-block h2 { font-size: 36px; }
+    .capture-form { flex-direction: column; }
+    .ba-cards { grid-template-columns: 1fr; gap: 16px; }
+    .ba-vs { font-size: 28px; transform: rotate(90deg); padding: 8px 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sticky Founding Bar -->
+<div class="sticky-bar">
+  <span>🔥 <strong>Founding pricing</strong> for the first <strong>100 waitlist signups</strong> — lock in <strong>$29/mo for 36 months.</strong></span>
+  <a href="#founding">Claim your spot →</a>
+  <button class="dismiss">×</button>
+</div>
+
+<!-- Nav -->
+<nav class="nav">
+  <div class="logo"><img src="assets/icon-mark.png" alt="" aria-hidden="true"><span class="brand">Wide<span class="brand-gold">Lens</span></span></div>
+  <ul>
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+    <li><a href="#about">About</a></li>
+  </ul>
+  <a href="#waitlist" class="nav-cta">Join the waitlist</a>
+  <button class="hamburger" onclick="document.getElementById('drawer').classList.add('open');document.getElementById('backdrop').classList.add('open');">☰</button>
+</nav>
+
+<!-- Mobile drawer -->
+<div class="backdrop" id="backdrop" onclick="document.getElementById('drawer').classList.remove('open');this.classList.remove('open');"></div>
+<div class="mobile-drawer" id="drawer">
+  <button class="close" onclick="document.getElementById('drawer').classList.remove('open');document.getElementById('backdrop').classList.remove('open');">×</button>
+  <ul>
+    <li><a href="#how" onclick="document.getElementById('drawer').classList.remove('open');document.getElementById('backdrop').classList.remove('open');">How it works</a></li>
+    <li><a href="#pricing" onclick="document.getElementById('drawer').classList.remove('open');document.getElementById('backdrop').classList.remove('open');">Pricing</a></li>
+    <li><a href="#about" onclick="document.getElementById('drawer').classList.remove('open');document.getElementById('backdrop').classList.remove('open');">About</a></li>
+  </ul>
+  <a href="#waitlist" class="btn btn-primary nav-cta" onclick="document.getElementById('drawer').classList.remove('open');document.getElementById('backdrop').classList.remove('open');">Join the waitlist</a>
+</div>
+
+<!-- Section 1: Hero -->
+<section class="bg-light">
+  <div class="section-inner hero">
+    <div class="hero-text">
+      <h1>Post short-form video without juggling five apps.</h1>
+      <p class="outcome">Get your week of content done in one sitting.</p>
+      <div class="cta-row">
+        <a href="#waitlist" class="btn btn-primary btn-big">Join the waitlist</a>
+        <a href="#how" class="btn btn-secondary btn-big">See how it works</a>
+      </div>
+      <div style="margin-top: 24px;">
+        <span class="chip"><span class="check">✓</span> 10-day free trial · No credit card</span>
+      </div>
+    </div>
+    <div class="hero-phone-wrap">
+      <div class="hero-phone">
+        <div class="hero-phone-screen">
+          <div class="phone-statusbar">
+            <span>10:08</span>
+            <span class="icons">•••• ●●●●</span>
+          </div>
+          <div class="phone-viewfinder">
+            <div class="phone-rec"><span class="phone-rec-dot"></span> REC 0:08</div>
+            <div class="phone-emmy-placeholder"><img src="assets/creator-hero.png" alt="Creator filming a Reel in WideLens"></div>
+            <div class="phone-teleprompter">“3 tools I can’t stop using — first one will <span class="gold-line">save you 6 hours a week</span>…”</div>
+          </div>
+          <div class="phone-controls">
+            <div class="phone-control-btn">⧉</div>
+            <div class="phone-shutter"></div>
+            <div class="phone-control-btn">⚙</div>
+          </div>
+          <div class="phone-publish-toast"><span class="toast-check">✓</span> Publishing to 4 platforms</div>
+          <div class="phone-publish-btn">Publish to 4 platforms →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Proof strip -->
+<section class="proof-strip">
+  <div class="proof-strip-inner">
+    <div class="proof-item"><span class="proof-check">✓</span> AI scripts in your voice</div>
+    <div class="proof-item"><span class="proof-check">✓</span> Auto captions</div>
+    <div class="proof-item"><span class="proof-check">✓</span> One-tap to 4 platforms</div>
+  </div>
+</section>
+
+<!-- Section 2: How It Works -->
+<section class="bg-white" id="how">
+  <div class="section-inner" style="text-align: center;">
+    <h2>How it works</h2>
+    <p class="sub-head">One coffee. Four Reels.</p>
+    <div class="steps">
+      <div class="step-card">
+        <div class="phone phone-straight" style="overflow: hidden; padding: 0; background: var(--text-dark);"><img src="assets/ui-step1.png" alt="Type a topic, get a script" style="width: 100%; height: 100%; object-fit: cover; object-position: center top;"></div>
+        <h3>1. Talk it out</h3>
+        <p class="sub-label">Type a topic. Get a script.</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step-card">
+        <div class="phone phone-straight" style="overflow: hidden; padding: 0; background: var(--text-dark);"><img src="assets/ui-step2.png" alt="Record yourself or let AI voice it" style="width: 100%; height: 100%; object-fit: cover; object-position: center top;"></div>
+        <h3>2. Film or fake it</h3>
+        <p class="sub-label">Read it yourself, or let AI voice it.</p>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step-card">
+        <div class="phone phone-straight" style="overflow: hidden; padding: 0; background: var(--text-dark);"><img src="assets/ui-step3.png" alt="Post to 4 platforms in one tap" style="width: 100%; height: 100%; object-fit: cover; object-position: center top;"></div>
+        <h3>3. Post everywhere</h3>
+        <p class="sub-label">One tap. Four platforms.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 4: Demo Video Loop -->
+<section class="bg-white">
+  <div class="section-inner" style="text-align: center;">
+    <h2>See it in motion.</h2>
+    <p class="sub-head">A 30-second look at the whole flow.</p>
+    <div style="margin: 56px auto 24px; max-width: 360px;">
+      <div class="phone phone-straight" style="aspect-ratio: 9/19; overflow: hidden; padding: 0; background: var(--text-dark);">
+        <img src="assets/creator-demo.png" alt="Creator reviewing a video in WideLens" style="width: 100%; height: 100%; object-fit: cover; object-position: center 20%;">
+      </div>
+    </div>
+    <a href="#waitlist" class="btn btn-primary">Join the waitlist</a>
+  </div>
+</section>
+
+<!-- Section 5: Feature Icon Grid -->
+<section class="bg-light">
+  <div class="section-inner" style="text-align: center;">
+    <h2>Everything you need. Nothing you don't.</h2>
+    <div class="feature-grid">
+      <div class="feature-box"><div class="feature-icon">✍️</div><div class="feature-label">AI script</div><div class="feature-benefit">Type a topic. Get a finished script in your voice.</div></div>
+      <div class="feature-box"><div class="feature-icon">💬</div><div class="feature-label">Auto captions</div><div class="feature-benefit">Burned-in captions on every Reel. No copy-paste.</div></div>
+      <div class="feature-box"><div class="feature-icon">📲</div><div class="feature-label">One-tap publish</div><div class="feature-benefit">IG, TikTok, YouTube, FB — posted in one tap.</div></div>
+      <div class="feature-box"><div class="feature-icon">🎭</div><div class="feature-label">Faceless mode</div><div class="feature-benefit">Don't want to be on camera? AI voices your script.</div></div>
+      <div class="feature-box"><div class="feature-icon">✂️</div><div class="feature-label">Built-in editor</div><div class="feature-benefit">Trim, caption, and finish without leaving the app.</div></div>
+      <div class="feature-box"><div class="feature-icon">🎵</div><div class="feature-label">Stock music</div><div class="feature-benefit">Licensed tracks built in. No copyright headaches.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 6: Replace 5 Tools -->
+<section class="bg-white">
+  <div class="section-inner" style="text-align: center;">
+    <h2>Stop paying for five apps.</h2>
+    <div class="compare">
+      <div class="old-tools">
+        <div class="old-tool">AI writer</div>
+        <div class="old-tool">Video editor</div>
+        <div class="old-tool">Caption tool</div>
+        <div class="old-tool">Music library</div>
+        <div class="old-tool">Social scheduler</div>
+      </div>
+      <div class="compare-arrow">↓</div>
+      <div class="new-tool"><span class="brand">Wide<span class="brand-gold">Lens</span></span></div>
+    </div>
+    <p style="margin-top: 48px; font-size: 20px; color: var(--text-muted);">One app. One subscription. One workflow.</p>
+  </div>
+</section>
+
+<!-- Section 6.5: Affiliate Teaser -->
+<section class="bg-light">
+  <div class="section-inner" style="text-align: center;">
+    <div style="font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 16px;">Affiliate program</div>
+    <h2 style="max-width: 860px; margin: 0 auto 24px;">Already have an audience? Get paid to share <span class="brand">Wide<span class="brand-gold">Lens</span></span>.</h2>
+    <p style="max-width: 740px; margin: 0 auto 56px; font-size: 18px; color: var(--text-muted); line-height: 1.6;">Creators, coaches, and agencies earn 25&ndash;35% recurring commission on every WideLens subscriber who signs up through their link. Rate locked at signup. Paid monthly via Stripe.</p>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 720px; margin: 0 auto 56px;">
+      <div style="background: var(--gold-soft); border-radius: 16px; padding: 32px 16px;">
+        <div style="font-size: 36px; font-weight: 800; color: var(--gold); line-height: 1; margin-bottom: 12px;">25&ndash;35%</div>
+        <div style="font-size: 14px; color: var(--text-dark); font-weight: 500;">Recurring commission</div>
+      </div>
+      <div style="background: var(--gold-soft); border-radius: 16px; padding: 32px 16px;">
+        <div style="font-size: 36px; font-weight: 800; color: var(--gold); line-height: 1; margin-bottom: 12px;">$0</div>
+        <div style="font-size: 14px; color: var(--text-dark); font-weight: 500;">Minimum payout</div>
+      </div>
+      <div style="background: var(--gold-soft); border-radius: 16px; padding: 32px 16px;">
+        <div style="font-size: 36px; font-weight: 800; color: var(--gold); line-height: 1; margin-bottom: 12px;">Monthly</div>
+        <div style="font-size: 14px; color: var(--text-dark); font-weight: 500;">Stripe payouts on the 1st</div>
+      </div>
+    </div>
+    <a href="/affiliate" class="nav-cta" style="display: inline-block; padding: 14px 28px; font-size: 16px;">Learn about the affiliate program &rarr;</a>
+  </div>
+</section>
+
+<!-- Section 7: Before / After -->
+<section class="bg-white">
+  <div class="section-inner" style="text-align: center;">
+    <h2>The old way vs. the <span class="brand">Wide<span class="brand-gold">Lens</span></span> way.</h2>
+    <div class="ba-cards">
+      <div class="ba-card before">
+        <div class="ba-card-title">Before</div>
+        <div class="ba-card-headline">Five apps. One headache.</div>
+        <div class="ba-row"><span class="ba-row-label">Apps used</span><span class="ba-row-value">5+</span></div>
+        <div class="ba-row"><span class="ba-row-label">Time per Reel</span><span class="ba-row-value">45–90 min</span></div>
+        <div class="ba-row"><span class="ba-row-label">Monthly cost</span><span class="ba-row-value">$80–150</span></div>
+        <div class="ba-row"><span class="ba-row-label">Posting cadence</span><span class="ba-row-value">Inconsistent</span></div>
+        <div class="ba-row"><span class="ba-row-label">Platforms</span><span class="ba-row-value">Manual, one at a time</span></div>
+      </div>
+      <div class="ba-vs">→</div>
+      <div class="ba-card after">
+        <div class="ba-card-title">With <span class="brand">Wide<span class="brand-gold">Lens</span></span></div>
+        <div class="ba-card-headline">One app. One workflow.</div>
+        <div class="ba-row"><span class="ba-row-label">Apps used</span><span class="ba-row-value">1</span></div>
+        <div class="ba-row"><span class="ba-row-label">Time per Reel</span><span class="ba-row-value">One sitting per week</span></div>
+        <div class="ba-row"><span class="ba-row-label">Monthly cost</span><span class="ba-row-value">From $29</span></div>
+        <div class="ba-row"><span class="ba-row-label">Posting cadence</span><span class="ba-row-value">Weekly batch</span></div>
+        <div class="ba-row"><span class="ba-row-label">Platforms</span><span class="ba-row-value">IG, TikTok, YT, FB — one tap</span></div>
+      </div>
+    </div>
+    <div class="compare-footnote">Typical monthly retail: AI script tool ($20–30) + video editor ($15–25) + caption tool ($10–20) + music library ($15–30) + social scheduler ($20–45).</div>
+  </div>
+</section>
+
+<!-- Mid-page Email Capture (Lead Magnet) — moved below comparison -->
+<section class="bg-light">
+  <div class="section-inner capture">
+    <h2>Get the playbook first.</h2>
+    <p class="sub-head">"5 Reel hooks that actually work" — free PDF, delivered to your inbox.</p>
+    <div class="capture-form">
+      <input type="email" placeholder="you@email.com">
+      <button class="btn btn-primary">Send me the PDF</button>
+    </div>
+  </div>
+</section>
+
+<!-- Section 8: Founding Member Offer (DARK) -->
+<section class="bg-dark" id="founding">
+  <div class="section-inner founding-block">
+    <p class="outcome">Get your week of content done in one sitting.</p>
+    <div class="founding-emoji">🔥</div>
+    <h2>Founding Member Pricing</h2>
+    <p style="margin-top: 24px; font-size: 19px;">The first 100 waitlist members lock in <strong style="color: var(--gold-soft);">$29/mo</strong> for 36 months. The next 250 lock in <strong style="color: var(--gold-soft);">$39/mo</strong> for 36 months. After the first 350 spots fill, the standard Starter rate is $49/mo.</p>
+    <ul class="bullets">
+      <li><span class="check">✓</span> Price locked for 36 months</li>
+      <li><span class="check">✓</span> Full Starter plan access</li>
+      <li><span class="check">✓</span> Priority support</li>
+      <li><span class="check">✓</span> Early access to new features</li>
+    </ul>
+    <div class="justification">We wanted founding members locked in for the journey, not the quarter.</div>
+    <div style="margin-top: 32px;">
+      <a href="#waitlist" class="btn btn-primary btn-big">Join the waitlist →</a>
+    </div>
+    <div class="counter" style="opacity: 0.85;">Founding pricing applied in signup order on launch day.</div>
+  </div>
+</section>
+
+<!-- Section 9: Pricing Teaser -->
+<section class="bg-light" id="pricing">
+  <div class="section-inner" style="text-align: center;">
+    <h2>Simple pricing. No surprises.</h2>
+    <p class="sub-head" style="margin-bottom: 0;">Every plan includes the full workflow. Pick the volume that fits.</p>
+    <div class="billing-toggle" role="tablist">
+      <button class="active" type="button">Monthly</button>
+      <button type="button">Annual <span class="save-pill">Save 17%</span></button>
+    </div>
+    <div class="pricing-cards">
+      <!-- STARTER -->
+      <div class="price-card">
+        <div class="tier-icon">✦</div>
+        <div class="tier-name">Starter</div>
+        <div class="tier-tag">For solo creators just getting going</div>
+        <div class="tier-price">$49<span class="per">/mo</span></div>
+        <div class="tier-annual">or $490/year (save $98)</div>
+        <ul class="tier-features">
+          <li class="tier-feature"><span class="feat-check">✓</span><span><strong>15 AI scripts</strong> per week, in your voice</span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span>Teleprompter + faceless modes</span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span>AI captions, in-app editor, music library</span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span>One-tap publishing to IG, TikTok, YouTube, FB</span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span>Per-Reel analytics + monthly insights</span></li>
+        </ul>
+        <div class="tier-cta"><a href="#waitlist" class="btn btn-secondary">Start free trial</a></div>
+      </div>
+      <!-- PRO -->
+      <div class="price-card featured">
+        <div class="price-badge">Best for most</div>
+        <div class="tier-icon">⚡</div>
+        <div class="tier-name">Pro</div>
+        <div class="tier-tag">For growing channels and multi-brand creators</div>
+        <div class="tier-price">$99<span class="per">/mo</span></div>
+        <div class="tier-annual">or $990/year (save $198)</div>
+        <ul class="tier-features">
+          <li class="tier-feature"><span class="feat-check">✓</span><span><strong>Everything in Starter, plus:</strong></span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span><strong>30 AI scripts</strong> per week (2× the volume)</span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span>Up to <strong>3 brand voices</strong> (multi-brand)</span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span>Priority caption + voice generation</span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span>Filters + premium music library</span></li>
+        </ul>
+        <div class="tier-cta"><a href="#waitlist" class="btn btn-primary">Start free trial</a></div>
+      </div>
+      <!-- PREMIUM -->
+      <div class="price-card dark">
+        <div class="price-badge founding">🔥 Founding — 38 of 40 left</div>
+        <div class="tier-icon">◆</div>
+        <div class="tier-name">Premium</div>
+        <div class="tier-tag">For serious operators and small agencies</div>
+        <div class="tier-price">$499<span class="per">/mo</span></div>
+        <div class="tier-annual"><strong style="color: var(--gold-soft);">Locked for life</strong> · $749/mo after launch</div>
+        <ul class="tier-features">
+          <li class="tier-feature"><span class="feat-check">✓</span><span><strong>Everything in Pro, plus:</strong></span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span><strong>Unlimited AI scripts</strong> + unlimited brand voices</span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span><strong>Custom scripts from Paul</strong> — up to 5 per week</span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span>White-glove onboarding call</span></li>
+          <li class="tier-feature"><span class="feat-check">✓</span><span>Price locked forever, even after standard rate goes up</span></li>
+        </ul>
+        <div style="font-style: italic; color: var(--gold-soft); font-size: 13px; margin-bottom: 16px;">Less than the cheapest agency retainer.</div>
+        <div class="tier-cta"><a href="#waitlist" class="btn btn-primary">Claim founding seat</a></div>
+      </div>
+    </div>
+    <div class="trial-strip"><span class="check">✓</span> 10-day free trial on every plan · No credit card required</div>
+  </div>
+</section>
+
+<!-- Section 10: Founder (DARK) -->
+<section class="bg-dark">
+  <div class="section-inner founder-block">
+    <div class="founder-photo" style="overflow: hidden; padding: 0; background: var(--text-dark);"><img src="assets/paul-founder.jpg?v=4" alt="Paul, Founder" style="width: 100%; height: 100%; object-fit: cover; object-position: center 38%;"></div>
+    <div>
+      <h2>Why I built <span class="brand" style="color: #fff;">Wide<span class="brand-gold" style="color: var(--gold);">Lens</span></span></h2>
+      <p>I'm not a Reels guru. I'm a creator who got tired of juggling apps, paying for five subscriptions, and posting to four platforms one at a time. So I built it for myself first.</p>
+      <div class="pull-quote">"It saved me 6 hours a week. That's when I knew it was bigger than a personal tool."</div>
+      <p><span class="brand" style="color: #fff;">Wide<span class="brand-gold" style="color: var(--gold);">Lens</span></span> is what came next.</p>
+      <div class="founder-sig">— Paul<br><span style="font-weight: 500; opacity: 0.85; font-size: 0.9em;">Founder, WideLens</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Section 11: Bottom Email Capture -->
+<section class="bg-light" id="waitlist">
+  <div class="section-inner capture">
+    <h2>Want to know the day we go live?</h2>
+    <p class="sub-head">One email when <span class="brand">Wide<span class="brand-gold">Lens</span></span> opens. No spam.</p>
+    <div class="capture-form">
+      <input type="email" placeholder="you@email.com">
+      <button class="btn btn-primary">Notify me</button>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="logo" style="color: #fff; margin-bottom: 16px; justify-content: center; display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 22px; letter-spacing: -0.02em;"><img src="assets/icon-mark.png" alt="" aria-hidden="true" style="height: 1.5em; width: auto;"><span class="brand">Wide<span class="brand-gold" style="color: var(--gold);">Lens</span></span></div>
+  <div>
+    <a href="#about">About</a> ·
+    <a href="#pricing">Pricing</a> ·
+    <a href="#">Affiliate</a> ·
+    <a href="#">Terms</a> ·
+    <a href="#">Privacy</a>
+  </div>
+  <div style="margin-top: 16px; font-size: 12px; opacity: 0.5;">© 2026 WideLens. All rights reserved.</div>
+</footer>
+
+</body>
+</html>
