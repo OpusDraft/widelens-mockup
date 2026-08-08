@@ -32,25 +32,48 @@ as a restoration of that list.
 
 ## Outstanding work items
 
-### A. Database / security advisories (7 open, Supabase advisor)
+### A. Database / security advisories
 
-Confirmed open as of 2026-08-08. This is the only concrete, written-down backlog that exists.
+**Migration `harden_function_search_path_and_revoke_public_rpc` applied 2026-08-08.**
 
-1. **ERROR** — `founder_program_public_status` is a `SECURITY DEFINER` view. Only ERROR-level
-   advisory; everything else is WARN.
-2. `handle_new_user()` is callable by `anon` via `/rest/v1/rpc`.
-3. `is_admin()` is callable by `anon` via `/rest/v1/rpc`.
-4. `billing_anomalies` — RLS enabled with **zero policies** (table is fully inaccessible, or
-   fully exposed if RLS is later disabled; either way unintended).
-5. `connection_secrets` — RLS enabled with **zero policies**. Same problem, higher stakes given
-   the table name.
-6. Five functions with mutable `search_path`.
-7. `vector` extension installed in the `public` schema.
+**FIXED — verified cleared from the advisor:**
 
-Plus, in Auth config (not a table advisory): **leaked-password protection is disabled**.
+- All **5 mutable `search_path` functions** now pinned to `public, pg_temp`:
+  `_founder_program_config_set_closes_at()`, `enforce_premium_script_request()`,
+  `enforce_scheduled_queue_cap()`, `guard_stills_no_voice_pipeline()`, `touch_updated_at()`.
+  The `function_search_path_mutable` lint no longer appears at all.
+- **`anon` EXECUTE revoked** on `handle_new_user()` and `is_admin()`. Their ACL had a leading
+  `=X/postgres` (an implicit grant to PUBLIC, which is how `anon` reached them); `anon` was
+  never named explicitly. `authenticated` and `service_role` had explicit grants and are
+  unaffected. Advisory now reports `authenticated`, not `anon` — anonymous RPC access closed.
 
-> None of these are fixable from this repo — no migrations, no SQL, no functions here. They
-> need either the Supabase MCP (`apply_migration`) or the real app repo.
+**OPEN — deliberately not "fixed", do not let a future session flip these blindly:**
+
+- `founder_program_public_status` (**ERROR**, SECURITY DEFINER view, `anon=r`). It returns only
+  `tier_open` (`founder_29`/`founder_39`/`closed`) and `closes_at`, reading `profiles` and
+  `founder_program_config` purely to count cohort rows. No PII. It is the public endpoint the
+  marketing site uses for founder pricing. The textbook remedy —
+  `ALTER VIEW … SET (security_invoker = on)` — **would break founder pricing on widelens.app**,
+  because `anon` has no SELECT on either underlying table. Leave it, or convert it to a
+  SECURITY DEFINER function.
+- `billing_anomalies` and `connection_secrets` — RLS on, 0 policies. That is deny-all to `anon`
+  and `authenticated`; `service_role` bypasses RLS. If the backend reaches these server-side
+  (`connection_secrets` holds OAuth tokens), they are **currently secure, and adding policies
+  would loosen them.** Now reported at INFO, not WARN.
+
+**OPEN — low value:**
+
+- `vector` extension in `public`. Moving it means dropping/rebuilding indexes.
+- Leaked-password protection disabled. Dashboard toggle: Authentication → Providers → Password.
+  Not reachable via MCP.
+
+**OPEN — never part of the "7", found 2026-08-08:**
+
+- **34 `auth_allow_anonymous_sign_ins` warnings** — RLS policies granting access to the `anon`
+  role on `profiles`, `subscriptions`, `connections`, `push_tokens`, `voice_consents`,
+  `storage.objects`, `affiliates`, `brands`, `reel_scripts` and 25 more. These predate the
+  migration above. **Inert if anonymous sign-ins are disabled in Auth; real exposure if not.**
+  Check that setting before doing anything else here.
 
 ### B. Vercel `live: false` on a READY production deployment
 
@@ -251,3 +274,4 @@ not as the recovered list — the real list is in the transcript of
 | 2026-08-08 | Recovery attempt 1: searched widelens-mockup only, found nothing. |
 | 2026-08-08 | Recovery attempt 2: located the lost session (session_01PPbMKLwCfA14UTenCztSnZ, transcript-only, unreadable from here); searched opusdraft + Google Drive; found no YC artifact; Notion/OneDrive connector 401. |
 | 2026-08-08 | Recovery attempt 3: diagnosed connectors (M365 installed but off-for-chat; Notion OAuth 401); pulled live product state from Supabase — 71 migrations, app in use through Aug 3, subscriptions=0. |
+| 2026-08-08 | Applied migration harden_function_search_path_and_revoke_public_rpc: 5 search_path fixes + anon EXECUTE revoked on 2 RPCs, both verified. Found 34 previously-unlisted anon RLS advisories. |
