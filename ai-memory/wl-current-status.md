@@ -387,6 +387,149 @@ constraint in the schema — status `assessed` requires `observations` be an obj
 
 ---
 
+## 4c. 🔴 SECURITY — Supabase tokens are leaking into PostHog (found 2026-08-08)
+
+**Supabase `access_token` AND `refresh_token` values are being captured verbatim** in the
+`$current_url` property of `$pageview` / `$pageleave` events in PostHog project **421406**.
+
+Cause: the auth callback returns tokens in the **URL fragment**, and the PostHog web SDK
+records the full URL. Decoded JWT payloads expose **`pcpoppell@live.com`**,
+**`chanpoppell57@gmail.com`**, Supabase user IDs, session IDs, and the project ref
+`swooocpvrsoyiklxydbm`.
+
+The observed **access** tokens have expired. **Refresh tokens do not expire on the same
+schedule and may still be redeemable.**
+
+**Fix, in order:**
+1. Revoke/rotate the affected Supabase sessions.
+2. Strip URL fragments before capture — PostHog `sanitize_properties` or
+   `mask_personal_data_properties`.
+3. Change the auth callback to consume the fragment then `history.replaceState` **before**
+   analytics fires.
+
+Related, same source: **24 auth-callback failures** with
+`error=access_denied&error_code=otp_expired` ("Email link is invalid or has expired") across
+`/auth/callback` and `/dashboard/auth/callback`. **Magic-link expiry is a live UX problem on
+the login path.**
+
+---
+
+## 4d. PostHog reality check — the moat emits no telemetry
+
+Project **421406** (org QuietSignal) is live as of 2026-08-07 and reachable with existing
+credentials — **no `WIDELENS_POSTHOG_API_KEY` needed**, the MCP connection already has
+owner-level access to both orgs.
+
+**~2,925 events all-time, 13 event names.** ~90% (2,620) come from three accounts:
+`pcpoppell@live.com` (2,402 events, 82%), `golden-path@widelens.test` (a synthetic QA rig, 110),
+`chanpoppell57@gmail.com` (108). The 26 `Application Installed` events are **2 people
+reinstalling**, not 26 users. **No non-founder account has ever signed in.** One
+`checkout_started`, ever (2026-07-01).
+
+**There is no product instrumentation at all.** A property scan for
+`reel|script|creator|video|render|publish|plan|tier` across all non-web events returned
+**one** match. Zero events for script generation, angle selection, hook ranking, critic
+scoring, render, caption, voice clone, teleprompter, publish, trial start, or subscription.
+Only mobile lifecycle (open/background/active/install/update) plus auth.
+
+> **The Viral Script Engine — the stated moat — emits no telemetry whatsoever.** PostHog can
+> neither corroborate nor refute "live and proven in production," and cannot produce the
+> cohort-retention data the Reality doc says investors will demand.
+
+**Live marketing-site routes** (from real pageviews — this is the best available map of the
+unreachable `marketing` repo): `/` (134 hits), `/dashboard` (22), `/dashboard/login` (14),
+`/features` (12), `/affiliate` (9), `/#waitlist` (7), `/pricing` (6), `/subscribe?from=app` (4),
+`/credits` (3), `/dashboard/analytics`, `/#beta`, **`/terms`**, **`/privacy`**, and
+`/install.html.` — note the **trailing-dot typo, a broken install link.**
+
+> **Correction to §8:** `/terms` and `/privacy` **do exist on the live site.** The dead
+> `href="#"` links are only in this repo's May 19 mockup. Verify their *content* meets the
+> platform requirements rather than assuming they're missing.
+
+Three **live** Stripe checkout-success URLs are present (`cs_live_b1qbeoW3…`,
+`cs_live_b1GYFYyfK…`, `cs_live_b1oy8kq7Y…`) — founder tests, consistent with "Stripe live and
+end-to-end tested."
+
+---
+
+## 4e. Investor materials — integrity gaps found 2026-08-08
+
+Drive holds 4 PDFs (all June 2026, plus duplicate copies in My Drive root) and one internal
+`WideLens_Financials_Reality_2026-05-31.md`. **No WideLens file has been touched since
+2026-06-15.** No YC material of any kind exists in Drive.
+
+**Referenced by the Reality doc but absent from Drive:** `WideLens Scale Plan.docx`,
+`WideLens Build Plan.docx`, `WideLens_Financials_2026-05-20.md`,
+`WideLens_Financials_Reality_2026-05-20.md`. The documents holding the *source* GTM and phasing
+logic are not in Drive — likely OneDrive.
+
+The headline ARR/subscriber tables in the PDFs match the Reality doc exactly. The problems are
+omissions and one arithmetic conflict:
+
+1. **The moat claim overstates what exists.** Business Plan: tagging "is the **foundation for**
+   an engine that learns." Executive Summary: "**building toward** an engine that learns." The
+   live component is the *critic* (scores a script in isolation). The **per-creator performance
+   loop is not built** — `adley-viral-playbook.md` (2026-06-10) lists "publish → pull real
+   analytics → tune per niche" as work **to build**, and says "**the loop is the moat.**" The
+   PDF line *"Live and proven in production today — not a roadmap promise"* is true of the
+   critic and **misleading about the loop.** §4d confirms: zero telemetry. §4b confirms: zero
+   analytics rows.
+2. **ARPU framing.** PDFs say "blended standard ARPU ≈ $79." *Standard* is load-bearing and
+   unexplained — actual Y1 blended is **$55 / $64 / $66**, because the founder cohort drags it
+   down. An investor reads $79 and overestimates Y1–Y2 revenue per sub by 20–30%.
+3. **The 36-month founder lock never actually expires.** Per `founder-lock-sweep.ts` the lock
+   pays "lower of current standard or signup price," so founders stay at $29/$39
+   **indefinitely** — a permanent ~$252K/yr drag decaying only by churn (~$11K/mo at Y5). Every
+   investor doc says "36-month lock," implying expiry.
+4. **Premium is capacity-gated in code at 40 seats** (seat 41+ sees a waitlist until a
+   writer-hire flag flips). The PDFs present $499 Premium as an open tier — and Premium carries
+   $24.95 of the $79 blended ARPU.
+5. **Two discount programs are absent from all investor material:** Cohort 2 (25% off annual
+   for the first 1,000 post-founding Starter buyers, ~$122.5K Y2) and a 50%-off-first-month
+   bio-link promo.
+6. **The ask undershoots its own milestone.** All docs say the raise funds "the first 1,000
+   paying subscribers." The Reality ladder puts 1,000 subs at **$696K ARR**; $1M needs
+   **~1,320**.
+7. **Stretch Y1 contradicts itself inside one document** — Reality §3 says $1.64M, §5 says
+   $1.58M; the PDF published $1.58M.
+8. **Collected revenue ≈ half of exit ARR** (Y1 ~$288K / ~$540K / ~$822K). PDFs quote exit ARR
+   only.
+9. **Founder-bio conflicts across the set:** Business Plan and Exec Summary say *"A year ago,
+   at 67"*; the Pitch Deck says *"**Two years ago**, at 67."* Business Plan and Exec Summary
+   anonymize the employer to "a global energy-services company"; the **Pitch Deck names TD
+   Williamson.**
+10. **No cost model exists anywhere** — no burn, opex, COGS, gross margin, AI/inference cost
+    per user, render cost, or runway. Revenue only. Hiring triggers are defined but **no salary
+    figures for any role.**
+11. **Reality's own verdict on itself:** *"This document is internal planning. It is not
+    investor-ready."* Its numbers shipped into four investor PDFs three weeks later.
+
+### ⚠️ Structural issue for the raise
+
+**WideLens, LLC is a Louisiana LLC. A SAFE is a convertible instrument designed for
+C-corporations.** No document mentions a planned Delaware conversion or reincorporation — which
+most institutional pre-seed investors require before wiring. **No SAFE terms are stated
+anywhere**: no valuation cap, no discount, no MFN, no pre-/post-money designation, no target
+close, no minimum check. The word "SAFE" appears only in "raising $1M pre-seed on a SAFE."
+
+Also absent from Drive entirely: investor pipeline, target list, cap table, founder ownership,
+existing investors, data room beyond the four PDFs, diligence responses.
+
+**Commingling note for diligence:** `OpsDirect_Agent_Build_Sketch.md` is headed "Prepared for
+Paul · **WideLens, LLC (Claude for Startups)**" and instructs billing OpsDirect API calls
+"through the WideLens console key." WideLens, LLC is the entity of record for a second product
+line and holds Claude for Startups credits — a non-dilutive resource mentioned in no investor
+document.
+
+### Founder cohort — the contradiction is now fully resolved
+
+**Drive/investor PDFs say 500 seats (100 @ $29 + 400 @ $39).** The **database says 350**
+(`internal_cap_29` 100, `internal_cap_39` 250) and **`index.html:262,485` says 350.**
+Two independent live sources agree on 350. **The investor materials are the outlier — fix the
+deck.**
+
+---
+
 ## 8. App-review playbook — the actual launch gate (researched 2026-08-08)
 
 ### ⚠️ Tier 0 — one problem blocks all three platforms at once
@@ -564,3 +707,4 @@ the session ends — an outcome branch that is never pushed is not a record.
 | 2026-08-08 | Parallel agent sweep. **Found the app org: `widelensapp`** (widelens + marketing), referenced in opsdirect CI routing — prior "never pushed" conclusion was wrong. Corrected PostHog to org QuietSignal / project 421406. Found the marketing page collects zero emails (no forms, no JS) and three conflicting founder-cohort numbers. Staged + tested a WideLens gatekeeper. |
 | 2026-08-08 | App-review research: widelens.app has zero search footprint (corroborates Vercel live:false) — a first-order rejection risk on all three platforms. Full Meta/TikTok/YouTube playbook recorded in §8. Found an App Store name collision (Dubai agency "WIDELENS"). |
 | 2026-08-08 | Supabase deep inventory: found forgeable stripe-webhook stub mode, empty voice_consents while voice cloning is live, zero admins, and that publishing/analytics have NEVER run (the learning loop cannot start). Founder program is one switch from open; DB caps (350) confirm the deck's 500 is wrong. |
+| 2026-08-08 | Drive + PostHog sweep: found Supabase refresh/access tokens leaking into PostHog $current_url (live credential exposure), zero product telemetry (the moat emits nothing), 11 investor-material integrity gaps incl. a Louisiana LLC raising on a SAFE, and confirmed the live site does serve /terms and /privacy. |
