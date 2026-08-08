@@ -265,6 +265,150 @@ Migration `harden_function_search_path_and_revoke_public_rpc`, verified:
 
 ---
 
+## 8. App-review playbook — the actual launch gate (researched 2026-08-08)
+
+### ⚠️ Tier 0 — one problem blocks all three platforms at once
+
+**`widelens.app` has no public footprint.** The domain returns **nothing in search results** —
+unindexed, noindexed, or not serving. Independently, Vercel reports the project `live: false`
+despite a READY Jul 26 production deploy. **Two unrelated signals pointing the same way.**
+
+All three reviewers independently verify that a real, publicly reachable product exists.
+TikTok explicitly rejects submissions that "look like internal tools, side projects, or
+demos." A reviewer googling WideLens today finds a Dubai marketing agency and some fisheye
+camera apps. **This is a first-order rejection risk on all three platforms simultaneously,
+and nothing else on this list matters until it is fixed.**
+
+Also confirmed absent: no App Store listing, no Product Hunt, no Crunchbase, no LinkedIn
+company page, no YC directory entry (applications are private, so that last one is
+uninformative).
+
+**Name collision worth a trademark check:** an App Store developer account named
+**"WIDELENS FOR MARKETING SERVICES VIA SOCIAL MEDIA CO."** (Dubai) already operates in
+social-media marketing, plus `widelens.partners` (advisory) and `widelens.info` (Dubai
+agency). This also explains why organic search will stay muddy.
+
+### The universal prerequisites (build once, unblocks all three)
+
+1. Live, publicly reachable, indexable marketing site at `widelens.app` — real product
+   description, screenshots, English. Not a waitlist. Renders without JS for a crawler.
+2. `https://widelens.app/privacy` — same root domain. Must **explicitly name** Meta/Instagram,
+   TikTok, and Google/YouTube data; what is collected, why, retention, deletion.
+   **Write it AFTER the integrations exist and date it accordingly** — a policy predating the
+   integration is a named YouTube rejection reason.
+3. `https://widelens.app/terms`.
+4. A data-deletion path (form differs per platform).
+5. A signup flow a reviewer can complete unaided + a pre-provisioned reviewer test account.
+6. **Three separate screen recordings**, one per platform: sign up → connect → OAuth consent
+   with scopes visible → compose → publish → confirmation.
+
+Current state: `index.html:598-600` has `href="#"` for Affiliate/Terms/Privacy, and no
+data-deletion link exists. Items 1–4 are unmet in this repo.
+
+### Meta / Instagram — hardest, longest lead. Start today.
+
+**Pick the auth path first; picking wrong costs weeks.** Recommendation: **Instagram Login**
+(`instagram_business_content_publish` + `instagram_business_basic`, host `graph.instagram.com`)
+— the creator does **not** need a linked Facebook Page. The Facebook-Login path
+(`instagram_content_publish` + `instagram_basic` + `pages_show_list` + `pages_read_engagement`)
+requires one, which is onboarding friction and support tickets. Only take it if you also need
+to publish to Facebook Pages or need Business Discovery.
+*(Unverified: one source lists the FB-Login permission as `instagram_publish_content`; likely
+transposed. Confirm in the App Dashboard permission picker.)*
+
+Advanced Access is required the moment a stranger connects an account, and requires **App
+Review AND Business Verification**.
+
+**Business Verification is a separate queue and is the long pole — start it now.** Documents
+must match the LLC name **character-for-character** against the Louisiana filing
+("WideLens LLC" vs "Widelens, L.L.C." bounces). Legal-name proof: **IRS CP 575 or 147C**
+(ordering a 147C alone can take weeks), or LA Articles of Organization. Address proof:
+business bank statement (Mercury accepted) or a utility bill in the business name under 12
+months — **mobile phone bills are typically rejected**.
+
+**Data deletion:** prefer the **Callback URL** (HTTPS endpoint accepting Meta's signed POST,
+returning a confirmation code + status URL) over the Instructions URL — Meta re-tests it after
+launch and a silent failure can restrict a live app. **The privacy policy, the deletion
+method, and the requested permissions must all tell the same story** — inconsistency is a
+named rejection trigger.
+
+**One screencast per permission.** Reviewers do not explore the app. Every permission must be
+backed by shipped, working functionality — requesting one for an unbuilt feature is an
+explicit rejection reason.
+
+Operational limits once approved: target account must be Professional (Business/Creator);
+~50–100 posts per rolling 24h per account (check `/{ig-user-id}/content_publishing_limit`);
+**media must be at a public HTTPS URL — no direct file upload**; no native scheduling, no
+editing after publish, no licensed music on Reels. Flow: `POST /{ig-user-id}/media` → poll
+`status_code` → `POST /{ig-user-id}/media_publish`.
+
+Timeline: budget **2–6 weeks**, assume at least one rejection.
+
+### TikTok — highest UX-compliance burden. No viable pre-audit launch.
+
+**Pre-audit the client is crippled:** all posts forced to **`SELF_ONLY`**, **max 5 users per
+24h**, and every posting account must be private at post time. There is no partial unlock.
+**Do not plan to launch on TikTok before the audit clears.** Post-audit, the 24h creator cap
+derives from the usage estimates on your own audit form — estimate generously but defensibly.
+
+Use `video.publish` (Direct Post) for one-tap. `video.upload` only drops to drafts. Request
+**only** the scopes actually used — extras are a red flag.
+
+**UX requirements are contractual and verified visually:** call `Query Creator Info`
+immediately before every post (no cache); display creator username + avatar; privacy selector
+populated from `privacy_level_options` with **NO default** — user must actively pick;
+Comment/Duet/Stitch checkboxes **disabled and greyed** (not hidden) when the creator disabled
+them; the line "By posting, you agree to TikTok's Music Usage Confirmation." with a live link
+directly above the publish button; Content Disclosure toggle **off by default**, revealing
+"Your brand"/"Branded content", and the declaration text changes when Branded content is
+checked. **No WideLens watermark, logo, or promo text burned into TikTok output** — that is a
+contractual violation.
+
+**Highest-leverage implementation choice:** use **`FILE_UPLOAD`, not `PULL_FROM_URL`**, and
+TikTok domain verification becomes moot. With `PULL_FROM_URL` you must verify the exact host
+serving the file — your S3/R2/CDN hostname, not `widelens.app`. Note this is the **opposite**
+of Instagram, which forces a public URL. Plan the media pipeline for both.
+
+Timeline: 2–4 weeks, usually multiple rounds.
+
+### YouTube — lowest bar, but TWO separate approvals people conflate
+
+**Gate 1 — Google OAuth verification.** `youtube.upload` is a *sensitive* (not restricted)
+scope, so no CASA assessment. Unverified apps cap at 100 users and show the "app isn't
+verified" interstitial. Requires: `widelens.app` verified in **Google Search Console** and
+listed as an Authorized domain; homepage on that domain; privacy policy on the **same domain**,
+linked from the homepage, URL matching the consent-screen config exactly; consent-screen name/
+logo/support email matching the real product (branding mismatch is a top rejection trigger);
+demo video; request `youtube.upload` **alone**, never the broad `youtube` scope.
+
+**Gate 2 — YouTube API Services compliance audit.** Separate team, separate form. **Any
+project created after 28 July 2020 that has not passed it has all `videos.insert` uploads
+locked to private, permanently.** Passing Gate 1 does not pass Gate 2. Submit the **correct
+variant** of the [Audit and Quota Extension Form](https://support.google.com/youtube/contact/yt_api_form)
+— wrong variant is a named rejection reason. Answer follow-up questions fast; slow replies are
+an explicit rejection contributor.
+
+*(Unverified, worth checking: multiple 2026 sources report Google cut `videos.insert` from
+~1,600 units to ~100 on 2025-12-04, raising the practical ceiling from ~6 to ~100 uploads/day.
+If true, **no quota extension is needed at launch** — only the compliance audit. Confirm at
+the API [Revision History](https://developers.google.com/youtube/v3/revision_history) before
+planning around it; most guides still quote 1,600.)*
+
+Timeline: 2–4 weeks.
+
+### Submission order
+
+1. **YouTube first** — lowest bar, fastest signal, teaches the rhythm cheaply.
+2. **TikTok second** — once the UX surface is pixel-compliant.
+3. **Meta last** — after Business Verification clears.
+
+**Interim shipping story to decide now:** launch YouTube-only one-tap while the others are in
+review, or ship share-sheet/manual export for IG and TikTok. Assume one rejection per
+platform; realistic worst case is Meta at 6–8 weeks. Do not set a launch date that assumes
+first-pass approval anywhere.
+
+---
+
 ## 7. Lost-session history (closed — do not re-investigate)
 
 `session_01PPbMKLwCfA14UTenCztSnZ` "Widelens session recovery" (2026-08-08 12:26 UTC) produced
@@ -296,3 +440,4 @@ the session ends — an outcome branch that is never pushed is not a record.
 | 2026-08-08 | Applied `harden_function_search_path_and_revoke_public_rpc`, verified. Found 34 unlisted anon RLS advisories. |
 | 2026-08-08 | Full read: PSP (all 8 standards, master spec, both constitutions), gatekeeper + Caveman Pass in opsdirect, opusdraft, Supabase. Verified PSP generator produces a 10/10 WideLens charter. Confirmed the app source exists in no reachable location. |
 | 2026-08-08 | Parallel agent sweep. **Found the app org: `widelensapp`** (widelens + marketing), referenced in opsdirect CI routing — prior "never pushed" conclusion was wrong. Corrected PostHog to org QuietSignal / project 421406. Found the marketing page collects zero emails (no forms, no JS) and three conflicting founder-cohort numbers. Staged + tested a WideLens gatekeeper. |
+| 2026-08-08 | App-review research: widelens.app has zero search footprint (corroborates Vercel live:false) — a first-order rejection risk on all three platforms. Full Meta/TikTok/YouTube playbook recorded in §8. Found an App Store name collision (Dubai agency "WIDELENS"). |
