@@ -265,6 +265,128 @@ Migration `harden_function_search_path_and_revoke_public_rpc`, verified:
 
 ---
 
+## 4b. Supabase deep inventory (2026-08-08) — what is built vs. never exercised
+
+35 tables, 1 view, **2 edge functions**, 3 storage buckets, 75 migrations, **0 custom enum
+types** (every state machine is a `text` column + CHECK — invisible to
+`generate_typescript_types`, must be hand-synced). Postgres 17.6.1.121, us-east-1.
+
+**Most backend logic is NOT in Supabase — it is in Trigger.dev.** The `stripe-webhook` edge
+function verifies the signature then forwards to `api.trigger.dev/api/v1/tasks/stripe-webhook/trigger`.
+Trigger.dev is therefore a fourth infra dependency alongside Supabase/Vercel/PostHog.
+
+### 🔴 Three things to fix before any real user touches this
+
+1. **`stripe-webhook` can be forged.** The function runs with `verify_jwt=false` and contains a
+   **stub mode: if `STRIPE_WEBHOOK_SECRET` is unset it skips signature verification entirely**
+   and trusts any POSTed JSON. Unset secret ⇒ anyone on the internet can forge
+   `customer.subscription.created`. **Confirm that secret is set in production.**
+2. **`voice_consents` is EMPTY (0 rows) while voice cloning is already live** — 1 profile has a
+   `voice_id`, and there are 4 ElevenLabs `cost_events`. Cloned voice is being generated with
+   **no consent record captured**. Legal exposure, and squarely against Constitution Art. VII
+   (experimentation is consented) and Art. X (memory serves the creator).
+3. **No admin exists.** `is_admin = false` on all 6 profiles. Nine RLS policies branch on
+   `is_admin()`, and `founder_program_config_admin_read`, `script_requests_delete_admin`, and
+   `affiliates_update_admin` are admin-only. **Right now no human can read the founder config
+   or approve an affiliate through the client** — everything admin-shaped requires service-role.
+
+Also: **`delete-account` degrades silently** — if `STRIPE_SECRET_KEY` is unset it logs
+"subscription NOT canceled" and deletes the user anyway. A deleted user keeps getting billed.
+
+### 🔴 The core product finding: the loop is open at both ends
+
+Reels get made and approved — then stop.
+
+| Feature | Rows | Last write |
+| --- | --- | --- |
+| Reel assets / scripts | 56 / 97 (27 approved, 42 with a final video) | 2026-08-03 |
+| Content agent | 25 runs, 68 suggestions (**only 1 of 68 accepted**) | 2026-08-03 |
+| **`scheduled_posts`** | **0** | **never** |
+| **`reel_analytics`** / `card_analytics` | **0** | **never** |
+| `moderation_events` | 0 | never |
+| `tracked_links` / `link_clicks` | 0 | never |
+
+**Publishing has never run once.** No analytics have ever been fetched. Which means
+`content_agent_runs.phase` can never progress `general → blended → personal`, because
+"personal" needs performance data that has never been collected. **The learning engine — the
+stated moat — cannot start learning until something publishes and metrics come back.**
+
+### The founder program is built and fully unlaunched — ONE switch turns it on
+
+`founder_program_config` (singleton): `program_opened_at` **NULL**, `program_closes_at` NULL,
+`internal_cap_29` **100**, `internal_cap_39` **250**, `internal_cap_total` 350.
+The public view currently returns `tier_open = 'closed'`.
+
+**Zero profiles in `founder_29`. Zero in `founder_39`. Zero founder locks.**
+
+Setting `program_opened_at` fires `_founder_program_config_set_closes_at()`, which hardcodes a
+**90-day window** (not configurable), and the view immediately starts returning `founder_29`.
+
+> **This resolves the cohort contradiction.** The database says **100 @ $29 + 250 @ $39 = 350**,
+> and `index.html:262,485` says the same. **The investor deck's "500-seat (100 + 400)" is the
+> outlier and is wrong.** Fix the deck, not the code. (`internal_cap_total` is decorative — the
+> view never reads it.)
+
+### Built but never exercised (12 empty tables)
+
+`scheduled_posts` · `reel_analytics` · `card_analytics` · `tracked_links` · `link_clicks` ·
+`referrals` (1 affiliate, 0 commissions) · `subscriptions` (**dead — redundant with
+`profiles.stripe_*`, which is what's actually populated**) · `billing_anomalies` ·
+`moderation_events` · `voice_consents` · `script_requests` (**Premium "Paul writes it" queue
+has never received a request despite 2 premium profiles**; 0 scripts with `source='paul'`) ·
+`reel_series`.
+
+Columns built but never populated: `reel_assets.production_plan` (0/56),
+`reel_scripts.script_features` (33/97), `profiles.referral_code` (**0/6 — the entire
+friend-referral system cannot function without codes**), `profiles.stripe_subscription_id` (0/6).
+
+### Storage
+
+| Bucket | Public | Limit | Objects | Size |
+| --- | --- | --- | --- | --- |
+| `reel-assets` | no | 2 GB, MIME allowlist | 335 | **1.38 GB** |
+| `app-installs` | **yes** | none, no allowlist | 4 | 19.6 MB |
+| `music-previews` | **yes** | none, no allowlist | 8 | 2.6 MB |
+
+`reel-assets` has 4 correct per-user policies keyed on `(storage.foldername(name))[1] =
+auth.uid()::text`. The two public buckets have no size limit and no MIME allowlist — a footgun
+if a client write path is ever opened.
+
+### RLS — why 40 anon advisories are noise, and the one real grant
+
+**All 35 tables have RLS on**; 33 have policies. **Every policy targets role `{public}`, not
+`{authenticated}`** — and `public` includes `anon`, which is the entire cause of the 40
+`auth_allow_anonymous_sign_ins` advisories. In practice every predicate reduces to
+`customer_id = auth.uid()`, and `auth.uid()` is NULL for anon, so **no rows ever match.**
+Re-scope to `TO authenticated` for defense in depth and to clear the advisor — but this is
+**not** live exposure.
+
+**`anon` has exactly one grant in the entire public schema:** SELECT on
+`founder_program_public_status`. No table grants `anon` anything.
+
+Well-designed details worth preserving: `moderation_events` lets users file `appeal` only
+(CHECK forbids self-issued `block`/`override`); `script_requests_premium_only` enforces the
+Premium entitlement **in the database**, not just the UI; `photo_labels` has the strongest
+constraint in the schema — status `assessed` requires `observations` be an object AND `model`,
+`objective_rubric_version`, `assessed_at` all non-null.
+
+### Residue and inconsistencies
+
+- **Abandoned "overlook" POC** (3 migrations on 2026-05-29, incl. one named `_no_auth`, dropped
+  same day). Residue: **`vector` (pgvector 0.8.0) still installed in `public`** with ~100
+  functions granted to anon/authenticated, and **no table anywhere uses a vector column.**
+  Safe to drop outright.
+- `subscriptions.tier` omits `trial` but `profiles.tier` includes it — vocabularies disagree.
+- `card_analytics.platform` allows only `instagram|facebook`, but `scheduled_posts.platforms`
+  allows all four — a card posted to TikTok/YouTube could never record analytics.
+- `photo_labels` and `reel_series` have `updated_at` but **no `touch_updated_at` trigger**.
+- `billing_anomalies` grants `authenticated` full CRUD at the GRANT layer while
+  `connection_secrets` grants nothing — inconsistent; tighten `billing_anomalies`.
+- `guard_stills_no_voice_pipeline()` **mutates status rather than raising** — a caller setting
+  `awaiting_voice` on a cinematic-stills reel silently gets a different status back, no error.
+
+---
+
 ## 8. App-review playbook — the actual launch gate (researched 2026-08-08)
 
 ### ⚠️ Tier 0 — one problem blocks all three platforms at once
@@ -441,3 +563,4 @@ the session ends — an outcome branch that is never pushed is not a record.
 | 2026-08-08 | Full read: PSP (all 8 standards, master spec, both constitutions), gatekeeper + Caveman Pass in opsdirect, opusdraft, Supabase. Verified PSP generator produces a 10/10 WideLens charter. Confirmed the app source exists in no reachable location. |
 | 2026-08-08 | Parallel agent sweep. **Found the app org: `widelensapp`** (widelens + marketing), referenced in opsdirect CI routing — prior "never pushed" conclusion was wrong. Corrected PostHog to org QuietSignal / project 421406. Found the marketing page collects zero emails (no forms, no JS) and three conflicting founder-cohort numbers. Staged + tested a WideLens gatekeeper. |
 | 2026-08-08 | App-review research: widelens.app has zero search footprint (corroborates Vercel live:false) — a first-order rejection risk on all three platforms. Full Meta/TikTok/YouTube playbook recorded in §8. Found an App Store name collision (Dubai agency "WIDELENS"). |
+| 2026-08-08 | Supabase deep inventory: found forgeable stripe-webhook stub mode, empty voice_consents while voice cloning is live, zero admins, and that publishing/analytics have NEVER run (the learning loop cannot start). Founder program is one switch from open; DB caps (350) confirm the deck's 500 is wrong. |
