@@ -90,9 +90,72 @@ touch the static mockup and the live Supabase/Vercel/PostHog services via MCP.
 
 ---
 
+## THE LOST SESSION — found, but not readable from here
+
+`session_01PPbMKLwCfA14UTenCztSnZ` — **"Widelens session recovery"**, created 2026-08-08
+12:26 UTC (16 min before the session that wrote this file), status IDLE, still in the account.
+
+Its own post-turn summary: **"handoff text for WideLens session recovery + status memo"**.
+That is the lost morning's work.
+
+Two reasons it was invisible:
+
+1. **It had four repos attached** — `widelens-mockup`, `opsdirect`, `opusdraft`, `psp`. The
+   follow-up session was scoped to `widelens-mockup` alone, so `ai-memory/` and `docs/`
+   (which exist in `opusdraft`, not here) were nowhere to be found.
+2. **Its branch was never pushed.** It declared outcome branch
+   `claude/widelens-session-recovery-13sigh` on `widelens-mockup`, but GitHub shows only
+   `main` and `claude/widelens-status-recovery-7amgso`. Nothing was committed — the handoff
+   text and status memo exist **only in that session's transcript**.
+
+**It cannot be read programmatically from this session:** `ListAgents` returns no reachable
+agents, and no `send_message` / `list_events` tool is exposed here.
+
+> **To recover it: open `session_01PPbMKLwCfA14UTenCztSnZ` in claude.ai and copy the handoff
+> text out.** That is the only path. Paste it here and it goes into this file permanently.
+
+### Lesson (this is why this file exists)
+
+Attach every relevant repo at session start, and **commit the memo before the session ends** —
+an outcome branch that is never pushed is not a record.
+
+---
+
+## YC submission — July 28
+
+Paul reports WideLens was submitted to YC on 2026-07-28. **No artifact of it is reachable
+from this session.** Searched: both repos, all GitHub branches/PRs/issues, and Google Drive
+(full-text `WideLens`, full-text `Y Combinator`, title `YC`, everything modified after
+2026-07-20). Drive's July window contains only unrelated FWI documents.
+
+What Drive *does* hold — the pre-seed materials that most likely fed the application, all
+created 2026-06-15 by `chanpoppell57@gmail.com`:
+
+| Document | ID |
+| --- | --- |
+| `WideLens_Business_Plan.pdf` | `1J5ydRIe6H2i4cbKXR8m4gvTsgFXCG4N7` |
+| `WideLens_PitchDeck.pdf` | `16zJg_b7ltTVzSZ5pW5ByBRlveHN7DUGU` |
+| `WideLens_Executive_Summary.pdf` | `1dfk2nqdHc8nIYhMfAGVAbly0uSFcKFSO` |
+| `WideLens_Financial_Projections.pdf` | `16KeT4D79vGuNRA-k8TS4h5sAmc7oSa-q` |
+| Folder: `WideLens-Investor Materials` | `1s2NBVqSdInCuPa0omvzTu5CN00dFX8IP` |
+
+Key claims in those materials, for continuity: raising **$1M pre-seed on a SAFE**; pricing
+$49 / $99 / $499 with a 500-seat Founder cohort at $29–39 locked 36 months; blended ARPU
+≈ $79; **the one remaining launch gate is third-party app-review approval (Meta, TikTok,
+YouTube) for one-tap publishing** — not engineering.
+
+### Blocked sources
+
+- **OneDrive — not reachable.** No OneDrive connector is attached. The Notion connector
+  (which indexes OneDrive/SharePoint) returns **401 `API token is invalid`** — the token
+  needs re-authorizing before any OneDrive `.md` can be searched. **This is likely where the
+  July/YC material lives.**
+
+---
+
 ## Recovery attempt (2026-08-08)
 
-Searched, all empty:
+Searched in `widelens-mockup`, all empty:
 
 - `CLAUDE.md`, `AGENTS.md` — do not exist.
 - Any `*.md` anywhere in the working tree — **zero markdown files existed** before this one.
@@ -105,9 +168,21 @@ Searched, all empty:
   `claude/widelens-status-recovery-7amgso`) pointing at the same commit.
 - `search_code org:OpusDraft widelens filename:*.md` — 0 results.
 
+Also searched, outside this repo:
+
+- `OpusDraft/opusdraft` (cloned to `/workspace/opusdraft`) — a **separate product**
+  (opusdraft.com). Its `ai-memory/od-current-status.md` is the naming convention this file
+  follows. Only WideLens reference is a comment at `src/app/api/status/route.ts:229-231`
+  noting the widelens.app status feed is built and deployed elsewhere, returning 503 until
+  launch. No WideLens backlog, no YC material.
+- Google Drive — see the YC section above.
+- Notion / OneDrive / SharePoint — **401, connector token invalid.** Not searched.
+- `ListAgents` — no reachable agents, so sibling sessions cannot be queried.
+
 **Hypothesis, not a finding:** "~7 outstanding items" may be a fuzzy memory of the 7 open DB
 advisories in section A, which do number exactly seven. Treat as a coincidence to confirm,
-not as the recovered list.
+not as the recovered list — the real list is in the transcript of
+`session_01PPbMKLwCfA14UTenCztSnZ`.
 
 ---
 
@@ -115,4 +190,5 @@ not as the recovered list.
 
 | Date | What happened |
 | --- | --- |
-| 2026-08-08 | Attempted recovery of lost session list; found repo has no docs and no history. Created this file. No code changed. |
+| 2026-08-08 | Recovery attempt 1: searched widelens-mockup only, found nothing. |
+| 2026-08-08 | Recovery attempt 2: located the lost session (session_01PPbMKLwCfA14UTenCztSnZ, transcript-only, unreadable from here); searched opusdraft + Google Drive; found no YC artifact; Notion/OneDrive connector 401. |
