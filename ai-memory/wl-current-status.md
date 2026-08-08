@@ -116,7 +116,9 @@ python3 verification/verify.py --target <repo-root>     # → 10/10 PASS
 | Domains | widelens.app, www.widelens.app, quietsignalapp.com, www.quietsignalapp.com |
 | Last prod deploy | Jul 26 — `dpl_5bdNf2xCPiVNZPemx7k4akhynLJw`, READY, project reports `live: false` |
 | Other Vercel team | `opusdrafts-projects` / `team_byCKV3wNsWdXe2iNAtmyVZUs` — quietsignal-marketing, opsdirect, opusdraft-app, wildmark-outdoors. **No WideLens app.** |
-| PostHog | project "Default project" id `414585`, org OpusDraft |
+| PostHog — **WideLens** | org **"QuietSignal"**, project **`421406`**. Keys: `WIDELENS_POSTHOG_API_KEY`, `WIDELENS_POSTHOG_PROJECT_ID`. Signup event is **`Application Installed`** (it's a mobile app — no `signup_completed`); `$pageview` fires from the marketing site. Verified live 2026-06-05 per `opsdirect/src/lib/connectors/productAnalytics.ts:28-52`. |
+| PostHog — OpusDraft (NOT WideLens) | project `414585`, org OpusDraft. Different org, different key. |
+| Stripe | WideLens has its **own Stripe account**, separate from OpusDraft's — `STRIPE_WIDELENS_API_KEY`, provider key `stripe-widelens` (`opsdirect/src/lib/accounts.ts:151-155,234-236,314-322`) |
 | Vendors (from OpsDirect sender buckets) | ElevenLabs (voice), Mercury (banking), Stripe (shared with OpusDraft) |
 
 widelens.app publishes a `GET /api/status` feed — built and deployed, **intentionally
@@ -166,11 +168,27 @@ app review."
 
 **Do NOT have — the one real blocker:**
 
-- **The WideLens iOS app source.** Not on GitHub. The authenticated identity is `OpusDraft`
-  (1 public repo); a GitHub-wide search for "widelens" returns only `widelens-mockup` and four
-  unrelated third-party repos. It is not on either Vercel team. `create_repository` returns
-  **403 Resource not accessible by integration**, so a session cannot create the repo either.
-- **The `marketing` Vercel project's source.** Deployed, but in no reachable repo.
+- **The WideLens app source lives under a DIFFERENT GitHub org: `widelensapp`.**
+  This was found 2026-08-08 in OpsDirect, which routes CI mail from that org:
+  - `opsdirect/src/config/businesses.ts:135` — `{ match: 'widelensapp/', bucket: 'widelens' }`
+  - CI fixtures naming **`widelensapp/widelens`** and **`widelensapp/marketing`**:
+    `tests/ci-collapse.test.ts:15,18,25-27,33,49-50`, `tests/bucket-read.test.ts:62-63`,
+    `tests/repo-map.test.ts:11`, `tests/fixtures/inbox-golden.ts:85`
+
+  Earlier sessions searched owner `OpusDraft` and concluded "the app was never pushed."
+  **That conclusion was wrong** — it was searching the wrong org.
+
+  **It still cannot be reached from a session rooted at an `opusdraft` repo.** `add_repo`
+  refuses: *"cross-tier adds are not supported in v1: requested widelensapp/widelens but
+  session already has repos from owner(s) [opusdraft]."* The GitHub MCP likewise denies it:
+  *"not configured for this session."* `org:widelensapp` search returns 422 (private or
+  unauthorized to this token).
+
+  > **THE FIX: start a session with `widelensapp/widelens` as the INITIAL source.** Not an
+  > add-on to an opusdraft session — the initial source. Same for `widelensapp/marketing`.
+- **The `marketing` Vercel project's source** is presumably `widelensapp/marketing`. It is
+  Next.js + Tailwind — `opsdirect/src/app/globals.css:9` cites "Palette source: WideLens
+  marketing **tailwind.config.ts**".
 - **OneDrive** — Microsoft 365 connector installed (`1b59f6a2-d948-4a55-a436-418b36e411c4`)
   but `enabledInChat: false`. Toggle it on in the conversation and it works immediately.
 - **Notion** — upstream OAuth token returns `401 API token is invalid`.
@@ -184,8 +202,26 @@ app review."
 
 ## 6. Outstanding work
 
-1. **Push the WideLens app to GitHub.** Everything else is downstream of this. Owner action:
-   create `OpusDraft/widelens` (private) in the UI, push, then `add_repo` here.
+1. **Open a session rooted at `widelensapp/widelens`.** The app repo exists; it is simply in
+   another org and unreachable from an `opusdraft`-rooted session (see §5). Nothing is
+   missing — this is a session-scoping problem, not a lost-code problem.
+0. **The marketing site collects ZERO emails.** `index.html` has **no `<form>` elements and
+   no `<script>` tags at all**. Both capture boxes are bare `<input type="email">` + `<button>`
+   with no `name`, no `id`, no handler, no action: the lead magnet (`:467-477`, "Send me the
+   PDF" `:474`) and the waitlist (`:580-590`, "Notify me" `:587`). **Every CTA on the page
+   funnels to `#waitlist`, which drops the address on the floor.** The billing Monthly/Annual
+   toggle (`:506-507`) and the sticky-bar dismiss (`:264`) are equally inert. If the live site
+   shares this markup, every signup since launch has been lost — verify against the live site
+   first, since this repo is the May 19 mockup.
+0. **Broken links in `index.html`:** `href="#"` at `:598` (Affiliate), `:599` (Terms),
+   `:600` (Privacy). `#about` referenced at `:273`, `:286`, `:596` but **no element has
+   `id="about"`**. `/affiliate` at `:434` does not exist. No data-deletion link anywhere.
+0. **Pricing contradicts itself in three places.** The page says first **100 @ $29** then
+   **250 @ $39** = 350 seats (`:262`, `:485`); the investor materials say a **500-seat**
+   cohort (100 @ $29, **400** @ $39); the Premium card says "**38 of 40 left**" (`:545`), a
+   third unrelated number. Premium is also "$499/mo, locked for life, **$749/mo after
+   launch**" (`:549-550`) — a claim that appears nowhere else. Pick one and make it true
+   everywhere before app review or investor diligence.
 2. **Bring WideLens under PSP** — currently 0/10. Generator verified working (§2).
 3. **No gatekeeper on WideLens** — port `.claude/agents/gatekeeper.md`, `hooks/gate.mjs`,
    `.githooks/pre-commit`, `Caveman_Pass.md` from OpsDirect, rewritten for the WideLens
@@ -259,3 +295,4 @@ the session ends — an outcome branch that is never pushed is not a record.
 | 2026-08-08 | Recovery attempt 2 — located the lost session; searched opusdraft + Drive; no YC artifact; Notion 401. |
 | 2026-08-08 | Applied `harden_function_search_path_and_revoke_public_rpc`, verified. Found 34 unlisted anon RLS advisories. |
 | 2026-08-08 | Full read: PSP (all 8 standards, master spec, both constitutions), gatekeeper + Caveman Pass in opsdirect, opusdraft, Supabase. Verified PSP generator produces a 10/10 WideLens charter. Confirmed the app source exists in no reachable location. |
+| 2026-08-08 | Parallel agent sweep. **Found the app org: `widelensapp`** (widelens + marketing), referenced in opsdirect CI routing — prior "never pushed" conclusion was wrong. Corrected PostHog to org QuietSignal / project 421406. Found the marketing page collects zero emails (no forms, no JS) and three conflicting founder-cohort numbers. Staged + tested a WideLens gatekeeper. |
