@@ -55,8 +55,11 @@ Plus, in Auth config (not a table advisory): **leaked-password protection is dis
 ### B. Vercel `live: false` on a READY production deployment
 
 `marketing` project reports `live: false` while its latest production deployment
-(Jul 26) is `READY` and `target: production`. Unexplained. Worth confirming widelens.app
-actually serves traffic before assuming the site is up.
+(Jul 26) is `READY` and `target: production`. **Still unresolved.** Attempted verification on
+2026-08-08 and could not complete it: `widelens.app` is blocked by this environment's network
+egress proxy (`EGRESS_BLOCKED`), and `web_fetch_vercel_url` could not mint a shareable URL for
+a custom domain. Check from a normal browser, or add `widelens.app` to the environment's
+allowed domains.
 
 ### C. Repo hygiene (this repo only, low priority)
 
@@ -64,6 +67,50 @@ actually serves traffic before assuming the site is up.
   "WideLens mockup v6". Title tag is stale.
 - `assets/creator-demo.png` (1.9 MB) and `assets/creator-hero.png` (1.9 MB) are unoptimized;
   repo is 12 MB, mostly images.
+
+---
+
+## Live product state, read from the Supabase DB (2026-08-08)
+
+Pulled directly from `swooocpvrsoyiklxydbm`. This is the most reliable picture of where the
+product actually stands, since the app repo isn't reachable.
+
+**71 migrations**, `20260512000000_foundational_tables` → `20260712191736_brand_positioning_mode`.
+Nothing after Jul 12. The build arc is legible from the migration names: schema → Stripe →
+analytics → affiliate → founder program → Meta OAuth → voice clone → viral script engine →
+posting cards → moderation/cost/billing controls → photo labels → RLS performance work.
+
+**The app was in active use through Aug 3, 2026** — three weeks after the last migration, and
+a week after the Jul 26 deploy. Most recent row per table:
+
+| Table | Last row |
+| --- | --- |
+| `content_agent_runs` | **2026-08-03 13:02 UTC** |
+| `approval_events` | 2026-08-03 00:46 |
+| `reel_assets` | 2026-08-03 00:45 |
+| `reel_scripts` | 2026-08-03 00:45 |
+| `photo_labels` | 2026-07-26 02:07 |
+| `cost_events` | 2026-07-12 22:42 |
+| `brands` / `profiles` | 2026-06-22 13:18 |
+
+**Row counts — pre-revenue, pre-launch, consistent with the investor materials:**
+
+| Table | Rows | | Table | Rows |
+| --- | --- | --- | --- | --- |
+| `approval_events` | 186 | | `profiles` | **6** |
+| `photo_labels` | 125 | | `brands` | 7 |
+| `reel_scripts` | 97 | | `affiliates` | 1 |
+| `script_events` | 94 | | `connections` | 1 |
+| `reel_photo_usage` | 82 | | **`subscriptions`** | **0** |
+| `content_agent_suggestions` | 68 | | `referrals` | 0 |
+| `reel_assets` | 56 | | `voice_consents` | 0 |
+| `content_agent_runs` | 25 | | `reel_analytics` | 0 |
+| `billing_events` | 12 | | `link_clicks` | 0 |
+
+Reading: 6 profiles / 7 brands with ~100 scripts and ~190 approval events is founder-and-
+tester usage, not customers. **`subscriptions` = 0 confirms no paying users yet.**
+`reel_analytics`, `link_clicks`, `card_analytics`, `referrals` all empty — those features
+have schema but no production data, matching "the remaining gate is app-review approval."
 
 ---
 
@@ -144,12 +191,23 @@ $49 / $99 / $499 with a 500-seat Founder cohort at $29–39 locked 36 months; bl
 ≈ $79; **the one remaining launch gate is third-party app-review approval (Meta, TikTok,
 YouTube) for one-tap publishing** — not engineering.
 
-### Blocked sources
+### Blocked sources — exact state, and the exact fix
 
-- **OneDrive — not reachable.** No OneDrive connector is attached. The Notion connector
-  (which indexes OneDrive/SharePoint) returns **401 `API token is invalid`** — the token
-  needs re-authorizing before any OneDrive `.md` can be searched. **This is likely where the
-  July/YC material lives.**
+Diagnosed 2026-08-08 via `ListConnectors` + `SearchMcpRegistry`. **OneDrive access exists on
+the account; it is not switched on for the chat.** Neither of these is fixable from inside a
+session — both are toggles in the claude.ai connector UI.
+
+| Connector | Org state | In this chat | Problem | Fix |
+| --- | --- | --- | --- | --- |
+| **Microsoft 365** (SharePoint/**OneDrive**/Outlook/Teams) — `installedServerId 1b59f6a2-d948-4a55-a436-418b36e411c4` | installed | **`enabledInChat: false`** | Tools (`sharepoint_search`, `sharepoint_folder_search`, `outlook_email_search`, `read_resource`) were never loaded into the session — `ToolSearch` cannot reach them | **Enable Microsoft 365 in this conversation's connector settings** |
+| **Notion** — `installedServerId e7d5c32f-5b9e-4b58-8d7f-c10cbeeb1225` | `connected: true` | `enabledInChat: true` | Upstream **Notion OAuth token returns 401 `API token is invalid`** on every call (`notion-search`, `notion-get-users`). No MCP tool exposes a refresh/re-auth action | **Reconnect Notion in claude.ai connector settings** |
+| **Gmail** | installed | `enabledInChat: false` | Not loaded — a Jul 28 YC confirmation email would be here | Enable in this conversation if the email matters |
+
+Once Microsoft 365 is enabled in the chat, OneDrive is searchable in the same session — no
+need to start over.
+
+**Also blocked:** `widelens.app` is denied by the environment's network egress proxy, so site
+liveness cannot be checked from a session in this environment.
 
 ---
 
@@ -192,3 +250,4 @@ not as the recovered list — the real list is in the transcript of
 | --- | --- |
 | 2026-08-08 | Recovery attempt 1: searched widelens-mockup only, found nothing. |
 | 2026-08-08 | Recovery attempt 2: located the lost session (session_01PPbMKLwCfA14UTenCztSnZ, transcript-only, unreadable from here); searched opusdraft + Google Drive; found no YC artifact; Notion/OneDrive connector 401. |
+| 2026-08-08 | Recovery attempt 3: diagnosed connectors (M365 installed but off-for-chat; Notion OAuth 401); pulled live product state from Supabase — 71 migrations, app in use through Aug 3, subscriptions=0. |
