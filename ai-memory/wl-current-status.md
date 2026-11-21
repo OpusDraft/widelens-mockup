@@ -1,7 +1,18 @@
 # WideLens — Current Status
 
-**Last updated:** 2026-08-08
+**Last updated:** 2026-11-21
 **Maintained by:** Claude sessions. Update at the END of every session.
+
+> ### ⚠️ Read this before trusting anything below
+>
+> Everything dated **2026-08-08** was written in a single day of recovery work and then sat
+> untouched for 3.5 months while the product kept shipping. On **2026-11-21** only the
+> **Supabase** figures were re-measured (§4, §4b, §9). **Several August conclusions are now
+> factually wrong — the corrections are marked `✅ CORRECTED 2026-11-21` inline.**
+>
+> **NOT re-verified on 2026-11-21, treat as August-era:** §2 PSP scores · §3 Vercel/PostHog/
+> Stripe infra · §4c token leak · §4d PostHog telemetry (connector was disconnected) ·
+> §4e investor materials · §6 items 2–4 (`index.html`) · §8 app-review research.
 
 ---
 
@@ -129,6 +140,24 @@ it wired but disabled: `opsdirect/src/config/statusFeeds.ts:27` (empty URL,
 ---
 
 ## 4. Live product state, from the Supabase DB
+
+> **✅ CORRECTED 2026-11-21 — the August figures in this section are obsolete.**
+> Re-measured live:
+>
+> | Metric | Aug 8 | **Nov 21** | |
+> | --- | --- | --- | --- |
+> | Migrations | 75 | **150** | doubled |
+> | Public tables | 35 | **61** | +26 |
+> | `profiles` | 6 | **14** | |
+> | `reel_assets` / `reel_scripts` | 56 / 97 | **105 / 167** | |
+> | **`scheduled_posts`** | **0** | **23** | **publishing RAN** |
+> | `voice_consents` | 0 | **3** | partially remediated |
+> | `is_admin = true` | 0 | **1** | remediated |
+> | `reel_analytics` / `card_analytics` | 0 | **0** | still empty |
+> | `subscriptions` | 0 | **0** | still empty |
+> | `billing_events` | 12 | **18** | |
+>
+> The August text below is kept for provenance. **Do not quote its numbers.**
 
 **71 migrations**, `20260512000000_foundational_tables` → `20260712191736_brand_positioning_mode`.
 Nothing after Jul 12. Arc: schema → Stripe → analytics → affiliate → founder program → Meta
@@ -294,6 +323,22 @@ Also: **`delete-account` degrades silently** — if `STRIPE_SECRET_KEY` is unset
 "subscription NOT canceled" and deletes the user anyway. A deleted user keeps getting billed.
 
 ### 🔴 The core product finding: the loop is open at both ends
+
+> **✅ CORRECTED 2026-11-21 — this finding is now HALF WRONG.**
+>
+> **`scheduled_posts` = 23 (was 0). Publishing has run.** The output end of the loop opened
+> some time between Aug 8 and Nov 21. The August claim *"Publishing has never run once"* is
+> **no longer true and must not be repeated** — in investor conversation or anywhere else.
+>
+> **What is still true:** `reel_analytics` and `card_analytics` are **still 0**. Posts go out;
+> **no performance data ever comes back.** So the conclusion that
+> `content_agent_runs.phase` cannot progress `general → blended → personal` **still holds** —
+> the moat still cannot learn. The gap moved from "nothing publishes" to **"nothing is measured
+> after it publishes."** That is a smaller, much more fixable gap: it is an analytics-fetch job,
+> not a publishing pipeline.
+>
+> **Next diagnostic for whoever picks this up:** check whether the 23 `scheduled_posts` rows
+> actually reached a platform (inspect their status column) or merely queued.
 
 Reels get made and approved — then stop.
 
@@ -674,6 +719,129 @@ first-pass approval anywhere.
 
 ---
 
+## 9. Unit economics — MEASURED, not modeled (2026-11-21)
+
+**This section closes §4e item 10 ("no cost model exists anywhere") for COGS.** Opex, salaries,
+burn and runway remain genuinely unmodeled.
+
+Source of truth is the Supabase table **`public.cost_events`** on project `swooocpvrsoyiklxydbm`
+— a real per-event meter written by the app, not an estimate. Columns: `kind`, `provider`,
+`model`, `units`, `unit_label`, `cost_micros` (USD × 10⁻⁶), `reel_asset_id`, `customer_id`,
+`created_at`.
+
+### Rate card (all-time, as of 2026-11-21)
+
+| kind | provider / model | rate | unit | events | total USD |
+| --- | --- | --- | --- | --- | --- |
+| `voice` | elevenlabs `mDg0MXLSuPPPqDAyqOqA` (primary clone) | **$0.00014063** | char | 44 | $3.1983 |
+| `voice` | elevenlabs `w6cMjRKPKb2wxUTVrcAf` | $0.00013995 | char | 6 | $0.4909 |
+| `voice` | elevenlabs — 4 other voice IDs | **$0.00010000** ⚠️ | char | 7 | $0.3628 |
+| `stt` | google (**captions**) | **$0.00049312** | sec | 10 | $0.1680 |
+| `ai_video` | heygen `avatar_iv_photo` | **$0.03850000** | sec | 8 | **$10.4094** |
+| `ai_image` | fal `flux-pro/v1.1-ultra` | $0.06000000 | image | 7 | $0.4200 |
+| `render` | internal (`process-faceless`, `generate-presenter-video`, `process-edits`) | $0.00034200 | sec | 82 | $1.3958 |
+| `ai_script` / `ai_critic` / `ai_agent` | anthropic `claude-sonnet-5` | ~$0.0000065 | token | 105 | $2.3829 |
+| `ai_script` / `ai_critic` / `ai_agent` | anthropic `claude-haiku-4-5-20251001` | ~$0.0000015 | token | 267 | $0.8000 |
+
+⚠️ **The `$0.00010000` ElevenLabs rate is exactly round and is almost certainly a hardcoded
+placeholder, not a real tariff.** Find the pricing map in the app repo and confirm before any
+COGS model leans on it. The two measured real rates cluster at ~$0.00014/char.
+
+### Voice cloning — the direct answer
+
+**≈ $0.000141 per character ≈ $0.073 per generation** (mean 517 chars on the primary voice).
+All-time ElevenLabs spend across all 6 voice IDs: **$4.05**.
+
+### Captions — the honest answer
+
+**There is no `caption` cost kind.** The nearest meter is `stt` / google at **$0.00049312/sec
+(= $0.0296 per minute of audio)**, first seen 2026-10-31, 10 events, $0.168 total.
+
+Speech-to-text is *presumably* what drives caption timing, but **that is inference from the kind
+name, not verified** — confirming it needs the app source (`widelensapp/widelens`, unreachable;
+see §5). Caption **burn-in** most likely falls inside `render`/`process-edits` ($0.000342/sec)
+and is **not separable** from general rendering. Net: **captions are partially metered at best.**
+Per Art. V this is recorded as not-yet-known rather than estimated.
+
+### COGS per reel (n = 48 reels carrying cost rows)
+
+| | USD |
+| --- | --- |
+| **Median** | **$0.1033** |
+| Mean | $0.3295 |
+| Min / Max | $0.0086 / $1.7837 |
+
+Mean split: **heygen avatar video $0.2169 (66%)** · voice $0.0805 · render $0.0284 ·
+stt/captions $0.0033 · **all LLM calls combined $0.0005**.
+
+> **The LLM is not the cost. Avatar video is.** Script + critic generation — the entire Viral
+> Script Engine — costs **five hundredths of a cent per reel**. HeyGen costs 430× that. Any
+> future cost-reduction work belongs on the video pipeline, not the prompts.
+
+### Monthly burn
+
+| Month | Events | Creators | Reels | USD |
+| --- | --- | --- | --- | --- |
+| 2026-07 | 4 | 1 | 3 | $0.2425 |
+| 2026-08 | 59 | 1 | 14 | $1.1517 |
+| 2026-09 | 25 | 1 | 7 | $0.6678 |
+| 2026-10 | 49 | 1 | 8 | $3.6299 |
+| **2026-11** (to the 21st) | **400** | **4** | **18** | **$13.9361** |
+| **ALL-TIME** | **537** | — | **50** | **$19.6280** |
+
+**Total AI/infra COGS since inception is under twenty dollars.** Still founder-and-tester
+scale — 4 distinct `customer_id`s in the heaviest month. But November is a step change:
+8× the events and ~4× the spend of October, driven by HeyGen arriving on 2026-10-31.
+
+### Margin implication
+
+Against **$49 Starter**, at the measured mean $0.3295/reel: **~149 reels/month** before gross
+margin reaches zero. At the median $0.1033: **~474 reels/month**. At the worst observed reel
+($1.7837): **~27**. Comfortable at any plausible usage — **but the whole picture is set by
+avatar-video seconds**, so a plan change that uncaps AI-video length is the one thing that can
+break it.
+
+### Caveats on these numbers
+
+1. `cost_events` records **what the app believes it spent**, from its own rate map. It has not
+   been reconciled against an ElevenLabs, HeyGen, fal or Anthropic invoice. **Reconcile before
+   putting any of this in an investor document.**
+2. 48 of 105 `reel_assets` carry cost rows. Reels predating the meter have **no** cost data, so
+   per-reel figures describe the metered subset only.
+3. Storage and Supabase/Vercel platform fees are **not** in `cost_events`. This is AI/render
+   COGS only, not full gross margin.
+4. `claude-haiku-4-5-20251001` is still live in the hot path (204 critic + 49 script calls,
+   latest 2026-11-21) alongside `claude-sonnet-5` (script from 2026-11-02, critic from
+   2026-11-10). The split is probably deliberate — cheap critic, expensive author — but it is
+   **7× the per-token rate between paths** and nothing documents the intent. Confirm it is a
+   choice, not a half-finished migration.
+
+### Reproduce
+
+```sql
+-- rate card
+select kind, provider, model, unit_label, count(*) events, sum(units) total_units,
+       round(sum(cost_micros)/1000000.0,4) total_usd,
+       round((sum(cost_micros)/1000000.0)/nullif(sum(units),0),8) usd_per_unit,
+       min(created_at)::date first_seen, max(created_at)::date last_seen
+from public.cost_events group by 1,2,3,4 order by total_usd desc nulls last;
+
+-- COGS per reel
+with per_reel as (select reel_asset_id, sum(cost_micros)/1000000.0 reel_usd
+                  from public.cost_events where reel_asset_id is not null group by 1)
+select count(*) reels, round(avg(reel_usd),4) mean,
+       round(percentile_cont(0.5) within group (order by reel_usd)::numeric,4) median,
+       round(min(reel_usd),4) min, round(max(reel_usd),4) max from per_reel;
+
+-- monthly burn
+select to_char(date_trunc('month',created_at),'YYYY-MM') month, count(*) events,
+       count(distinct customer_id) creators, count(distinct reel_asset_id) reels,
+       round(sum(cost_micros)/1000000.0,4) usd
+from public.cost_events group by 1 order by 1;
+```
+
+---
+
 ## 7. Lost-session history (closed — do not re-investigate)
 
 `session_01PPbMKLwCfA14UTenCztSnZ` "Widelens session recovery" (2026-08-08 12:26 UTC) produced
@@ -708,3 +876,4 @@ the session ends — an outcome branch that is never pushed is not a record.
 | 2026-08-08 | App-review research: widelens.app has zero search footprint (corroborates Vercel live:false) — a first-order rejection risk on all three platforms. Full Meta/TikTok/YouTube playbook recorded in §8. Found an App Store name collision (Dubai agency "WIDELENS"). |
 | 2026-08-08 | Supabase deep inventory: found forgeable stripe-webhook stub mode, empty voice_consents while voice cloning is live, zero admins, and that publishing/analytics have NEVER run (the learning loop cannot start). Founder program is one switch from open; DB caps (350) confirm the deck's 500 is wrong. |
 | 2026-08-08 | Drive + PostHog sweep: found Supabase refresh/access tokens leaking into PostHog $current_url (live credential exposure), zero product telemetry (the moat emits nothing), 11 investor-material integrity gaps incl. a Louisiana LLC raising on a SAFE, and confirmed the live site does serve /terms and /privacy. |
+| 2026-11-21 | **First session in 3.5 months.** Confirmed `widelensapp/widelens` is invisible to the account's GitHub App (`list_repos` returns only the 4 OpusDraft repos) — the August fix "start a session rooted there" is **not actionable**; the app must be installed on the `widelensapp` org first. Built the measured cost model from `cost_events` → new §9, closing §4e item 10 for COGS. Re-measured Supabase: **150 migrations / 61 tables / 14 profiles**, and **`scheduled_posts` = 23 — publishing HAS run**, falsifying the August centerpiece finding. `reel_analytics` still 0, so the learning loop is still open at the *return* end only. Docs-only change; Caveman Pass exemption stated. No code touched. |
